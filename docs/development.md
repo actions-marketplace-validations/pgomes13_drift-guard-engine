@@ -17,9 +17,9 @@ make run-grpc     # build and diff bundled gRPC fixtures
 ## Architecture
 
 ```
-cmd/driftengine/          # CLI entry point (drift-guard binary)
+cmd/drift-guard/          # CLI entry point (drift-guard binary)
 cmd/server/               # gRPC server entry point
-api/driftengine/v1/       # Protobuf service definition & generated Go code
+api/drift-guard/v1/       # Protobuf service definition & generated Go code
 internal/
   parser/
     openapi/             # OpenAPI YAML/JSON → schema.Schema

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	pb "github.com/pgomes13/drift-guard-engine/api/driftengine/v1"
+	pb "github.com/pgomes13/drift-guard-engine/api/drift-guard/v1"
 	"github.com/pgomes13/drift-guard-engine/internal/classifier"
 	differgraphql "github.com/pgomes13/drift-guard-engine/internal/differ/graphql"
 	differopenapi "github.com/pgomes13/drift-guard-engine/internal/differ/openapi"

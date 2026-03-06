@@ -13,7 +13,7 @@ drift-guard is designed to run in CI as a schema diff gate on pull requests.
     go-version: "1.22"
 
 - name: Install drift-guard
-  run: go install github.com/pgomes13/drift-guard-engine/cmd/driftengine@latest
+  run: go install github.com/pgomes13/drift-guard-engine/cmd/drift-guard@latest
 
 - name: Check for breaking API changes
   run: |
@@ -48,7 +48,7 @@ jobs:
           go-version: "1.22"
 
       - name: Install drift-guard
-        run: go install github.com/pgomes13/drift-guard-engine/cmd/driftengine@latest
+        run: go install github.com/pgomes13/drift-guard-engine/cmd/drift-guard@latest
 
       - name: OpenAPI drift check
         run: |
