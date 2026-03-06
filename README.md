@@ -17,7 +17,9 @@ brew install drift-guard
 drift-guard openapi --base api/base.yaml --head api/head.yaml --format github --fail-on-breaking
 ```
 
-## CI
+## Release
+
+Tag a version to trigger GoReleaser — cross-compiles for macOS, Linux, and Windows and publishes to the Homebrew tap:
 
 ```sh
 git tag v1.0.0

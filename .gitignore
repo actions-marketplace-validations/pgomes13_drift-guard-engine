@@ -1,5 +1,6 @@
 # Go
-drift-guard
+/drift-guard
+/driftengine
 *.exe
 *.out
 vendor/

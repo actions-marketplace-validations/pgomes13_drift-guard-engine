@@ -1,0 +1,217 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"github.com/spf13/cobra"
+
+	"github.com/pgomes13/drift-guard-engine/internal/classifier"
+	differgraphql "github.com/pgomes13/drift-guard-engine/internal/differ/graphql"
+	differgrpc "github.com/pgomes13/drift-guard-engine/internal/differ/grpc"
+	differopenapi "github.com/pgomes13/drift-guard-engine/internal/differ/openapi"
+	parsergraphql "github.com/pgomes13/drift-guard-engine/internal/parser/graphql"
+	parsergrpc "github.com/pgomes13/drift-guard-engine/internal/parser/grpc"
+	parseropenapi "github.com/pgomes13/drift-guard-engine/internal/parser/openapi"
+	"github.com/pgomes13/drift-guard-engine/internal/reporter"
+)
+
+var compareCmd = &cobra.Command{
+	Use:   "compare",
+	Short: "Generate schemas from code and diff them",
+	Long: `Generate API schemas by running a user-provided command against both the base
+and head revisions of the repository, then diff the results.
+
+Uses git worktree to check out the base ref without modifying the working tree.`,
+}
+
+// shared compare flags
+var (
+	flagGenBaseRef string
+	flagGenCmd     string
+	flagGenOutput  string
+)
+
+func addCompareFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVar(&flagGenBaseRef, "base-ref", "origin/main", "Git ref to use as the base (before) revision")
+	cmd.Flags().StringVar(&flagGenCmd, "cmd", "", "Command to run to generate the schema file (required)")
+	cmd.Flags().StringVar(&flagGenOutput, "output", "", "Relative path where --cmd writes the schema file (required)")
+	_ = cmd.MarkFlagRequired("cmd")
+	_ = cmd.MarkFlagRequired("output")
+}
+
+// runCompare checks out base-ref via git worktree, runs the generation command
+// in both the worktree and the current directory, then returns the two schema paths.
+func runCompare(baseRef, genCmd, outputPath string) (basePath, headPath string, cleanup func(), err error) {
+	cleanup = func() {}
+
+	// resolve current working directory (head)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", "", cleanup, fmt.Errorf("get working directory: %w", err)
+	}
+
+	// create a temp dir for the base worktree
+	tmpDir, err := os.MkdirTemp("", "drift-guard-base-*")
+	if err != nil {
+		return "", "", cleanup, fmt.Errorf("create temp dir: %w", err)
+	}
+	cleanup = func() {
+		exec.Command("git", "worktree", "remove", "--force", tmpDir).Run() //nolint:errcheck
+		os.RemoveAll(tmpDir)
+	}
+
+	// add worktree for base ref
+	if out, err := exec.Command("git", "worktree", "add", "--detach", tmpDir, baseRef).CombinedOutput(); err != nil {
+		return "", "", cleanup, fmt.Errorf("git worktree add %s: %w\n%s", baseRef, err, out)
+	}
+
+	// run generation command in base worktree
+	if err := runCmd(genCmd, tmpDir); err != nil {
+		return "", "", cleanup, fmt.Errorf("generate base schema: %w", err)
+	}
+
+	// run generation command in head (current dir)
+	if err := runCmd(genCmd, cwd); err != nil {
+		return "", "", cleanup, fmt.Errorf("generate head schema: %w", err)
+	}
+
+	basePath = filepath.Join(tmpDir, outputPath)
+	headPath = filepath.Join(cwd, outputPath)
+	return basePath, headPath, cleanup, nil
+}
+
+func runCmd(command, dir string) error {
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		return fmt.Errorf("empty command")
+	}
+	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stderr // route generator output to stderr so stdout stays clean
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// --------------------------------------------------------------------------
+// compare openapi
+// --------------------------------------------------------------------------
+
+var compareOpenapiCmd = &cobra.Command{
+	Use:   "openapi",
+	Short: "Generate OpenAPI schemas from code and diff them",
+	Example: `  # Using swaggo/swag
+  drift-guard compare openapi --cmd "swag init" --output docs/swagger.yaml
+
+  # Using go-swagger
+  drift-guard compare openapi --cmd "swagger generate spec -o swagger.yaml" --output swagger.yaml
+
+  # Against a specific base ref
+  drift-guard compare openapi --base-ref origin/release --cmd "swag init" --output docs/swagger.yaml --fail-on-breaking`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		basePath, headPath, cleanup, err := runCompare(flagGenBaseRef, flagGenCmd, flagGenOutput)
+		defer cleanup()
+		if err != nil {
+			return err
+		}
+
+		baseSchema, err := parseropenapi.Parse(basePath)
+		if err != nil {
+			return fmt.Errorf("parsing base: %w", err)
+		}
+		headSchema, err := parseropenapi.Parse(headPath)
+		if err != nil {
+			return fmt.Errorf("parsing head: %w", err)
+		}
+
+		result := classifier.Classify(basePath, headPath, differopenapi.Diff(baseSchema, headSchema))
+		if err := reporter.Write(cmd.OutOrStdout(), result, reporter.Format(flagFormat)); err != nil {
+			return err
+		}
+		if flagFailOnBreak && reporter.HasBreakingChanges(result) {
+			os.Exit(1)
+		}
+		return nil
+	},
+}
+
+// --------------------------------------------------------------------------
+// compare graphql
+// --------------------------------------------------------------------------
+
+var compareGraphqlCmd = &cobra.Command{
+	Use:   "graphql",
+	Short: "Generate GraphQL schemas from code and diff them",
+	Example: `  drift-guard compare graphql --cmd "go run ./tools/gen-schema.go" --output schema/schema.graphql --fail-on-breaking`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		basePath, headPath, cleanup, err := runCompare(flagGenBaseRef, flagGenCmd, flagGenOutput)
+		defer cleanup()
+		if err != nil {
+			return err
+		}
+
+		baseSchema, err := parsergraphql.Parse(basePath)
+		if err != nil {
+			return fmt.Errorf("parsing base: %w", err)
+		}
+		headSchema, err := parsergraphql.Parse(headPath)
+		if err != nil {
+			return fmt.Errorf("parsing head: %w", err)
+		}
+
+		result := classifier.Classify(basePath, headPath, differgraphql.Diff(baseSchema, headSchema))
+		if err := reporter.Write(cmd.OutOrStdout(), result, reporter.Format(flagFormat)); err != nil {
+			return err
+		}
+		if flagFailOnBreak && reporter.HasBreakingChanges(result) {
+			os.Exit(1)
+		}
+		return nil
+	},
+}
+
+// --------------------------------------------------------------------------
+// compare grpc
+// --------------------------------------------------------------------------
+
+var compareGrpcCmd = &cobra.Command{
+	Use:   "grpc",
+	Short: "Generate Protobuf schemas from code and diff them",
+	Example: `  drift-guard compare grpc --cmd "buf export . --output /tmp/proto" --output api.proto --fail-on-breaking`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		basePath, headPath, cleanup, err := runCompare(flagGenBaseRef, flagGenCmd, flagGenOutput)
+		defer cleanup()
+		if err != nil {
+			return err
+		}
+
+		baseSchema, err := parsergrpc.Parse(basePath)
+		if err != nil {
+			return fmt.Errorf("parsing base: %w", err)
+		}
+		headSchema, err := parsergrpc.Parse(headPath)
+		if err != nil {
+			return fmt.Errorf("parsing head: %w", err)
+		}
+
+		result := classifier.Classify(basePath, headPath, differgrpc.Diff(baseSchema, headSchema))
+		if err := reporter.Write(cmd.OutOrStdout(), result, reporter.Format(flagFormat)); err != nil {
+			return err
+		}
+		if flagFailOnBreak && reporter.HasBreakingChanges(result) {
+			os.Exit(1)
+		}
+		return nil
+	},
+}
+
+func init() {
+	for _, cmd := range []*cobra.Command{compareOpenapiCmd, compareGraphqlCmd, compareGrpcCmd} {
+		addCompareFlags(cmd)
+		addOutputFlags(cmd)
+	}
+	compareCmd.AddCommand(compareOpenapiCmd, compareGraphqlCmd, compareGrpcCmd)
+}
