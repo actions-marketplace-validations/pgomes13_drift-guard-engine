@@ -7,11 +7,13 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o diffengine ./cmd/diffengine
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o drift-guard ./cmd/server
 
 # Final stage
-FROM scratch
+FROM gcr.io/distroless/static-debian12
 
-COPY --from=builder /app/diffengine /diffengine
+COPY --from=builder /app/drift-guard /drift-guard
 
-ENTRYPOINT ["/diffengine"]
+EXPOSE 50051
+
+ENTRYPOINT ["/drift-guard"]
