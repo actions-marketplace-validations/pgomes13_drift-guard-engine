@@ -50,6 +50,22 @@ const (
 	ChangeTypeGQLInputFieldRemoved      ChangeType = "gql_input_field_removed"
 	ChangeTypeGQLInputFieldAdded        ChangeType = "gql_input_field_added"
 	ChangeTypeGQLInputFieldTypeChanged  ChangeType = "gql_input_field_type_changed"
+
+	// gRPC change types
+	ChangeTypeGRPCServiceRemoved          ChangeType = "grpc_service_removed"
+	ChangeTypeGRPCServiceAdded            ChangeType = "grpc_service_added"
+	ChangeTypeGRPCRPCRemoved              ChangeType = "grpc_rpc_removed"
+	ChangeTypeGRPCRPCAdded                ChangeType = "grpc_rpc_added"
+	ChangeTypeGRPCRPCRequestTypeChanged   ChangeType = "grpc_rpc_request_type_changed"
+	ChangeTypeGRPCRPCResponseTypeChanged  ChangeType = "grpc_rpc_response_type_changed"
+	ChangeTypeGRPCRPCStreamingChanged     ChangeType = "grpc_rpc_streaming_changed"
+	ChangeTypeGRPCMessageRemoved          ChangeType = "grpc_message_removed"
+	ChangeTypeGRPCMessageAdded            ChangeType = "grpc_message_added"
+	ChangeTypeGRPCFieldRemoved            ChangeType = "grpc_field_removed"
+	ChangeTypeGRPCFieldAdded              ChangeType = "grpc_field_added"
+	ChangeTypeGRPCFieldTypeChanged        ChangeType = "grpc_field_type_changed"
+	ChangeTypeGRPCFieldNumberChanged      ChangeType = "grpc_field_number_changed"
+	ChangeTypeGRPCFieldLabelChanged       ChangeType = "grpc_field_label_changed"
 )
 
 // Change represents a single detected difference between base and head schemas.
