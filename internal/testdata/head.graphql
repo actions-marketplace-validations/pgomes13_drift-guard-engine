@@ -1,0 +1,57 @@
+type Query {
+  user(id: ID!, includeDeleted: Boolean): User
+  users(limit: Int, offset: Int): [User!]!
+  search(query: String!, type: String): SearchResult
+}
+
+type Mutation {
+  createUser(input: CreateUserInput!): User!
+  updateUser(id: ID!, input: UpdateUserInput!): User!
+  # deleteUser removed — breaking
+}
+
+type User {
+  id: ID!
+  email: String!
+  name: String
+  role: UserRole!
+  # address removed — breaking
+  createdAt: String
+}
+
+type Address {
+  street: String!
+  city: String!
+  country: String!
+  postcode: String
+}
+
+enum UserRole {
+  ADMIN
+  VIEWER
+  # EDITOR removed — breaking
+}
+
+input CreateUserInput {
+  email: String!
+  name: String
+  role: UserRole!    # made required — breaking
+}
+
+input UpdateUserInput {
+  name: String
+  role: UserRole
+  notes: String      # added optional — non-breaking
+}
+
+# Post added to union — non-breaking
+type Post {
+  id: ID!
+  title: String!
+}
+
+union SearchResult = User | Address | Post
+
+interface Node {
+  id: ID!
+}
