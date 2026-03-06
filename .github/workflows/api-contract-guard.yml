@@ -4,11 +4,13 @@ on:
   pull_request:
     branches: [main, master]
     paths:
-      # Trigger only when OpenAPI schema files change.
+      # Trigger when OpenAPI or GraphQL schema files change.
       # Adjust these globs to match where your spec files live.
       - '**/*.yaml'
       - '**/*.yml'
       - '**/*.json'
+      - '**/*.graphql'
+      - '**/*.gql'
 
 permissions:
   contents: read
@@ -50,9 +52,9 @@ jobs:
         id: changed
         run: |
           cd head
-          # List files changed in this PR that look like OpenAPI specs
+          # List files changed in this PR that look like OpenAPI or GraphQL schemas
           CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD \
-            | grep -E '\.(yaml|yml|json)$' || true)
+            | grep -E '\.(yaml|yml|json|graphql|gql)$' || true)
           echo "files<<EOF" >> "$GITHUB_OUTPUT"
           echo "$CHANGED" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
@@ -83,14 +85,22 @@ jobs:
               continue
             fi
 
+            # Determine schema type from extension (auto-detected by the engine,
+            # but we pass it explicitly so the log is clear)
+            case "$file" in
+              *.graphql|*.gql) SCHEMA_TYPE="graphql" ;;
+              *)               SCHEMA_TYPE="openapi"  ;;
+            esac
+
             # Run the diff engine in github annotation mode
             diffengine \
               --base "$BASE_FILE" \
               --head "$HEAD_FILE" \
+              --type "$SCHEMA_TYPE" \
               --format github
 
             # Also capture JSON for the PR comment
-            JSON=$(diffengine --base "$BASE_FILE" --head "$HEAD_FILE" --format json)
+            JSON=$(diffengine --base "$BASE_FILE" --head "$HEAD_FILE" --type "$SCHEMA_TYPE" --format json)
             BREAKING=$(echo "$JSON" | jq '.summary.breaking')
             NON_BREAKING=$(echo "$JSON" | jq '.summary.non_breaking')
             TOTAL=$(echo "$JSON" | jq '.summary.total')
