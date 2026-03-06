@@ -1,0 +1,90 @@
+openapi: "3.0.0"
+info:
+  title: Users API
+  version: "2.0.0"
+paths:
+  /users:
+    get:
+      operationId: listUsers
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                  # total removed — breaking: ChangeTypeFieldRemoved
+    post:
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                role:
+                  type: string   # added — non-breaking: ChangeTypeFieldAdded
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  email:
+                    type: string
+  /users/{id}:
+    get:
+      operationId: getUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer  # changed string→integer — breaking: ChangeTypeParamTypeChanged
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  email:
+                    type: string
+    # delete removed — breaking: ChangeTypeMethodRemoved
+  /posts:
+    get:
+      operationId: listPosts
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array

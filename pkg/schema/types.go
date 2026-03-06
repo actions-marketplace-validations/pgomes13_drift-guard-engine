@@ -13,6 +13,7 @@ const (
 type ChangeType string
 
 const (
+	// OpenAPI change types
 	ChangeTypeEndpointRemoved        ChangeType = "endpoint_removed"
 	ChangeTypeEndpointAdded          ChangeType = "endpoint_added"
 	ChangeTypeMethodRemoved          ChangeType = "method_removed"
@@ -27,6 +28,28 @@ const (
 	ChangeTypeFieldAdded             ChangeType = "field_added"
 	ChangeTypeFieldTypeChanged       ChangeType = "field_type_changed"
 	ChangeTypeFieldRequiredChanged   ChangeType = "field_required_changed"
+
+	// GraphQL change types
+	ChangeTypeGQLTypeRemoved            ChangeType = "gql_type_removed"
+	ChangeTypeGQLTypeAdded              ChangeType = "gql_type_added"
+	ChangeTypeGQLTypeKindChanged        ChangeType = "gql_type_kind_changed"
+	ChangeTypeGQLFieldRemoved           ChangeType = "gql_field_removed"
+	ChangeTypeGQLFieldAdded             ChangeType = "gql_field_added"
+	ChangeTypeGQLFieldTypeChanged       ChangeType = "gql_field_type_changed"
+	ChangeTypeGQLFieldDeprecated        ChangeType = "gql_field_deprecated"
+	ChangeTypeGQLArgRemoved             ChangeType = "gql_arg_removed"
+	ChangeTypeGQLArgAdded               ChangeType = "gql_arg_added"
+	ChangeTypeGQLArgTypeChanged         ChangeType = "gql_arg_type_changed"
+	ChangeTypeGQLArgDefaultChanged      ChangeType = "gql_arg_default_changed"
+	ChangeTypeGQLEnumValueRemoved       ChangeType = "gql_enum_value_removed"
+	ChangeTypeGQLEnumValueAdded         ChangeType = "gql_enum_value_added"
+	ChangeTypeGQLUnionMemberRemoved     ChangeType = "gql_union_member_removed"
+	ChangeTypeGQLUnionMemberAdded       ChangeType = "gql_union_member_added"
+	ChangeTypeGQLInterfaceRemoved       ChangeType = "gql_interface_removed"
+	ChangeTypeGQLInterfaceAdded         ChangeType = "gql_interface_added"
+	ChangeTypeGQLInputFieldRemoved      ChangeType = "gql_input_field_removed"
+	ChangeTypeGQLInputFieldAdded        ChangeType = "gql_input_field_added"
+	ChangeTypeGQLInputFieldTypeChanged  ChangeType = "gql_input_field_type_changed"
 )
 
 // Change represents a single detected difference between base and head schemas.
