@@ -1,0 +1,10 @@
+# Go
+drift-guard
+*.exe
+*.out
+vendor/
+
+# VitePress
+docs/node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
