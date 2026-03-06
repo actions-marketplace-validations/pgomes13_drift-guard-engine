@@ -19,7 +19,7 @@ drift-guard openapi --base api/base.yaml --head api/head.yaml --format github --
 
 ## Release
 
-Tag a version to trigger GoReleaser — cross-compiles for macOS, Linux, and Windows and publishes to the Homebrew tap:
+Tag a version to trigger GoReleaser — cross-compiles for macOS, Linux, and Windows and publishes to the [Homebrew tap](https://github.com/pgomes13/homebrew-tap):
 
 ```sh
 git tag v1.0.0
