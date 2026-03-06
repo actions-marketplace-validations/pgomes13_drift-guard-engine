@@ -267,7 +267,15 @@ The proto definition lives at [`api/driftengine/v1/driftengine.proto`](api/drift
 
 ## CI
 
-Two GitHub Actions workflows are included:
+Three GitHub Actions workflows are included:
 
 - **`ci.yml`** — runs `make build`, `make test`, `make vet` on every push and pull request
 - **`pull_request.yml`** — auto-generates a PR description from commit messages as bullet points
+- **`release.yml`** — triggered on `v*` tags; cross-compiles binaries for macOS, Linux, and Windows via [GoReleaser](https://goreleaser.com), publishes a GitHub Release, and pushes the Homebrew formula to [`pgomes13/homebrew-tap`](https://github.com/pgomes13/homebrew-tap)
+
+### Releasing a new version
+
+```sh
+git tag v1.0.0
+git push origin v1.0.0
+```
