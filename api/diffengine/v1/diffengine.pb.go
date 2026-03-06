@@ -353,7 +353,7 @@ const file_api_diffengine_v1_diffengine_proto_rawDesc = "" +
 	"\x04info\x18\x04 \x01(\x05R\x04info2M\n" +
 	"\n" +
 	"DiffEngine\x12?\n" +
-	"\x04Diff\x12\x1a.diffengine.v1.DiffRequest\x1a\x1b.diffengine.v1.DiffResponseB8Z6drift-guard-diff-engine/api/diffengine/v1;diffenginev1b\x06proto3"
+	"\x04Diff\x12\x1a.diffengine.v1.DiffRequest\x1a\x1b.diffengine.v1.DiffResponseB8Z6drift-guard-engine/api/diffengine/v1;diffenginev1b\x06proto3"
 
 var (
 	file_api_diffengine_v1_diffengine_proto_rawDescOnce sync.Once

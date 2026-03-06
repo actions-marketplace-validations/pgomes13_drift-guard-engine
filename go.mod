@@ -1,4 +1,4 @@
-module drift-guard-diff-engine
+module drift-guard-engine
 
 go 1.25.0
 
