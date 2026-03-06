@@ -13,7 +13,13 @@ A schema diff engine that detects and classifies breaking vs. non-breaking API c
 ## Install
 
 ```sh
-go build -o drift-guard ./cmd/drift-guard
+go install github.com/pgomes13/drift-guard-diff-engine/cmd/driftengine@latest
+```
+
+Or build from source:
+
+```sh
+go build -o drift-guard ./cmd/driftengine
 ```
 
 Or via Make:
@@ -183,12 +189,15 @@ make clean       # remove binary
 
 make run-openapi  # build and diff bundled OpenAPI fixtures
 make run-graphql  # build and diff bundled GraphQL fixtures
+make run-grpc     # build and diff bundled gRPC fixtures
 ```
 
 ## Architecture
 
 ```
-cmd/drift-guard/          # CLI entry point
+cmd/driftengine/          # CLI entry point (drift-guard binary)
+cmd/server/               # gRPC server entry point
+api/driftengine/v1/       # Protobuf service definition & generated Go code
 internal/
   parser/
     openapi/             # OpenAPI YAML/JSON → schema.Schema
@@ -209,6 +218,43 @@ pkg/schema/
   graphql.schema.go      # GraphQL types and change type constants
   grpc.schema.go         # gRPC types and change type constants
 ```
+
+## gRPC Server
+
+The engine also ships as a standalone gRPC server (`DiffEngine` service, port `50051`).
+
+### Run with Docker
+
+```sh
+docker build -t drift-guard-engine .
+docker run -p 50051:50051 drift-guard-engine
+```
+
+Override the port via the `PORT` environment variable:
+
+```sh
+docker run -e PORT=9090 -p 9090:9090 drift-guard-engine
+```
+
+### Proto API
+
+```protobuf
+service DiffEngine {
+  rpc Diff(DiffRequest) returns (DiffResponse);
+}
+```
+
+`DiffRequest` fields:
+
+| Field          | Type    | Description                                                        |
+| -------------- | ------- | ------------------------------------------------------------------ |
+| `base_content` | `bytes` | Raw content of the base schema file                                |
+| `head_content` | `bytes` | Raw content of the head schema file                                |
+| `base_name`    | `string`| Original filename (used for extension-based type detection)        |
+| `head_name`    | `string`| Original filename of the head file                                 |
+| `type`         | `string`| Explicit schema type: `openapi`, `graphql`, or `grpc`. Auto-detected from `base_name` extension if omitted. |
+
+The proto definition lives at [`api/driftengine/v1/driftengine.proto`](api/driftengine/v1/driftengine.proto).
 
 ## CI
 
