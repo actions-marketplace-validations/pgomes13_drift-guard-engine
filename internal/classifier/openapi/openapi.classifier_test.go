@@ -3,10 +3,10 @@ package openapi_test
 import (
 	"testing"
 
-	"drift-guard-engine/internal/classifier"
-	differopenapi "drift-guard-engine/internal/differ/openapi"
-	parseropenapi "drift-guard-engine/internal/parser/openapi"
-	"drift-guard-engine/pkg/schema"
+	"github.com/pgomes13/drift-guard-engine/internal/classifier"
+	differopenapi "github.com/pgomes13/drift-guard-engine/internal/differ/openapi"
+	parseropenapi "github.com/pgomes13/drift-guard-engine/internal/parser/openapi"
+	"github.com/pgomes13/drift-guard-engine/pkg/schema"
 )
 
 const testdataDir = "../../testdata/"

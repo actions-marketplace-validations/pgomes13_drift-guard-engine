@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"drift-guard-engine/pkg/schema"
+	"github.com/pgomes13/drift-guard-engine/pkg/schema"
 )
 
 // DiffStringSet computes added/removed entries between two string slices and

@@ -13,7 +13,7 @@ A schema diff engine that detects and classifies breaking vs. non-breaking API c
 ## Install
 
 ```sh
-go install github.com/pgomes13/drift-guard-diff-engine/cmd/driftengine@latest
+go install github.com/pgomes13/drift-guard-engine/cmd/driftengine@latest
 ```
 
 Or build from source:

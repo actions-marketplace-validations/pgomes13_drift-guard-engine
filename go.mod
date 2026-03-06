@@ -1,4 +1,4 @@
-module drift-guard-engine
+module github.com/pgomes13/drift-guard-engine
 
 go 1.25.0
 

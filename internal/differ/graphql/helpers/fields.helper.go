@@ -3,7 +3,7 @@ package helpers
 import (
 	"fmt"
 
-	"drift-guard-engine/pkg/schema"
+	"github.com/pgomes13/drift-guard-engine/pkg/schema"
 )
 
 func IndexGQLFields(fields []schema.GQLField) map[string]schema.GQLField {

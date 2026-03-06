@@ -353,7 +353,7 @@ const file_api_driftengine_v1_driftengine_proto_rawDesc = "" +
 	"\x04info\x18\x04 \x01(\x05R\x04info2O\n" +
 	"\n" +
 	"DiffEngine\x12A\n" +
-	"\x04Diff\x12\x1b.driftengine.v1.DiffRequest\x1a\x1c.driftengine.v1.DiffResponseB5Z3drift-guard-engine/api/driftengine/v1;driftenginev1b\x06proto3"
+	"\x04Diff\x12\x1b.driftengine.v1.DiffRequest\x1a\x1c.driftengine.v1.DiffResponseB5Z3github.com/pgomes13/drift-guard-engine/api/driftengine/v1;driftenginev1b\x06proto3"
 
 var (
 	file_api_driftengine_v1_driftengine_proto_rawDescOnce sync.Once

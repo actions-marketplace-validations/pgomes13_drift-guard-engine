@@ -1,7 +1,7 @@
 // Package helpers provides internal diffing utilities for the gRPC differ.
 package helpers
 
-import "drift-guard-engine/pkg/schema"
+import "github.com/pgomes13/drift-guard-engine/pkg/schema"
 
 // IndexServices indexes a GRPCSchema's services by name.
 func IndexServices(s *schema.GRPCSchema) map[string]schema.GRPCService {

@@ -4,7 +4,7 @@ package helpers
 import (
 	"fmt"
 
-	"drift-guard-engine/pkg/schema"
+	"github.com/pgomes13/drift-guard-engine/pkg/schema"
 )
 
 func IndexEndpoints(s *schema.Schema) map[string]schema.Endpoint {

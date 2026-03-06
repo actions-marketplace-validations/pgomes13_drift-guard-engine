@@ -3,8 +3,8 @@ package graphql_test
 import (
 	"testing"
 
-	"drift-guard-engine/internal/parser/graphql"
-	"drift-guard-engine/pkg/schema"
+	"github.com/pgomes13/drift-guard-engine/internal/parser/graphql"
+	"github.com/pgomes13/drift-guard-engine/pkg/schema"
 )
 
 const testdataDir = "../../testdata/"

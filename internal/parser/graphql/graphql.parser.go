@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"drift-guard-engine/internal/parser/graphql/helpers"
-	"drift-guard-engine/pkg/schema"
+	"github.com/pgomes13/drift-guard-engine/internal/parser/graphql/helpers"
+	"github.com/pgomes13/drift-guard-engine/pkg/schema"
 
 	"github.com/vektah/gqlparser/v2/ast"
 	gqlparser "github.com/vektah/gqlparser/v2/parser"

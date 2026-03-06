@@ -5,8 +5,8 @@ package graphql
 import (
 	"fmt"
 
-	"drift-guard-engine/internal/differ/graphql/helpers"
-	"drift-guard-engine/pkg/schema"
+	"github.com/pgomes13/drift-guard-engine/internal/differ/graphql/helpers"
+	"github.com/pgomes13/drift-guard-engine/pkg/schema"
 )
 
 // Diff computes all changes between two normalized GraphQL schemas.
