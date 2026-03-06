@@ -156,20 +156,23 @@ func runSwagAuto(projectDir, outputDir string) error {
 // preferring cmd/*/ locations over others.
 func findMainGo(dir string) (string, error) {
 	var found []string
-	_ = fs.WalkDir(os.DirFS(dir), ".", func(path string, d fs.DirEntry, err error) error {
+	_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
 		if d.IsDir() {
-			skip := d.Name() == "vendor" || d.Name() == "node_modules" || strings.HasPrefix(d.Name(), ".")
-			depth := strings.Count(path, string(filepath.Separator))
-			if skip || depth >= 4 {
-				return fs.SkipDir
+			name := d.Name()
+			if name == "vendor" || name == "node_modules" || strings.HasPrefix(name, ".") {
+				return filepath.SkipDir
+			}
+			rel, _ := filepath.Rel(dir, path)
+			if strings.Count(rel, string(filepath.Separator)) >= 4 {
+				return filepath.SkipDir
 			}
 			return nil
 		}
 		if d.Name() == "main.go" {
-			found = append(found, filepath.Join(dir, path))
+			found = append(found, path)
 		}
 		return nil
 	})
