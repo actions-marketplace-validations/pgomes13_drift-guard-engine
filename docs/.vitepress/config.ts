@@ -16,6 +16,7 @@ export default defineConfig({
         text: 'Getting Started',
         items: [
           { text: 'Installation', link: '/install' },
+          { text: 'CLI', link: '/cli' },
           { text: 'Usage', link: '/usage' },
           { text: 'Supported', link: '/supported' },
         ],

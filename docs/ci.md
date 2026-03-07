@@ -38,25 +38,6 @@ jobs:
 
 > **Note:** Both `pull-requests: write` and `issues: write` are required. GitHub's PR comment API uses the Issues REST endpoint, which needs the `issues: write` permission.
 
-## Manual install + diff
-
-For diffing two existing schema files directly:
-
-```yaml
-- name: Install drift-guard
-  run: |
-    brew tap pgomes13/tap
-    brew install drift-guard
-
-- name: Check for breaking API changes
-  run: |
-    drift-guard openapi \
-      --base api/base.yaml \
-      --head api/head.yaml \
-      --format github \
-      --fail-on-breaking
-```
-
 ## Key flags
 
 | Flag | Purpose |
