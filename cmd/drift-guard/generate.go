@@ -45,15 +45,40 @@ func runGenerateWizard(cmd *cobra.Command, args []string) error {
 	scriptFound := swaggerScriptExists(cwd)
 	fmt.Fprintf(os.Stderr, "\nSwagger (openapi) file detected: %s\n", yesNo(specFound || scriptFound))
 
-	if !(specFound || scriptFound) && info.TypeName == "NestJS" {
-		if !promptYesNo("Proceed to add script?") {
-			return nil
+	if !(specFound || scriptFound) {
+		switch info.TypeName {
+		case "NestJS":
+			if !promptYesNo("Proceed to add script?") {
+				return nil
+			}
+			written, err := generate.ScaffoldNestSwaggerScript(cwd)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "scaffold written to %s\n", written)
+
+		case "Node.js":
+			if !generate.HasTsoaControllers(cwd) {
+				fmt.Fprintf(os.Stderr, "\nThis project uses plain Express routes (no tsoa @Route decorators found).\n"+
+					"Zero-config generation requires tsoa decorators (@Route, @Get, etc.).\n\n"+
+					"Use --cmd with a custom generation script instead:\n\n"+
+					"  drift-guard compare openapi --cmd \"node scripts/gen.js\" --output swagger.json\n\n"+
+					"Or adopt tsoa for zero-config: https://tsoa-community.github.io/docs\n")
+				return nil
+			}
+			if !promptYesNo("Set up tsoa for zero-config generation?") {
+				return nil
+			}
+			written, err := generate.ScaffoldTsoa(cwd)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "tsoa.json written to %s\n", written)
+			fmt.Fprintf(os.Stderr, "Installing tsoa...\n")
+			if err := generate.InstallTsoa(cwd); err != nil {
+				return err
+			}
 		}
-		written, err := generate.ScaffoldNestSwaggerScript(cwd)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(os.Stderr, "scaffold written to %s\n", written)
 	}
 
 	// --- Step 3: build the swagger spec ---
@@ -115,10 +140,11 @@ func swaggerSpecExists(dir string) bool {
 	return false
 }
 
-// swaggerScriptExists reports whether a swagger generation script is already
-// present in the project.
+// swaggerScriptExists reports whether a swagger generation script or tsoa
+// config is already present in the project.
 func swaggerScriptExists(dir string) bool {
 	candidates := []string{
+		"tsoa.json",
 		"scripts/generate-swagger.ts",
 		"scripts/generate-swagger.js",
 		"src/generate-swagger.ts",
