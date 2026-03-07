@@ -100,11 +100,11 @@ runs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh pr comment "${{ github.event.pull_request.number }}" \
-          --repo "${{ github.repository }}" \
-          --body "## Drift Guard Report
-
-        $(cat /tmp/drift-output.txt)"
+        BODY="$(printf '## Drift Guard Report\n\n'; cat /tmp/drift-output.txt)"
+        gh api \
+          --method POST \
+          "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+          -f body="$BODY"
 
 branding:
   icon: shield
