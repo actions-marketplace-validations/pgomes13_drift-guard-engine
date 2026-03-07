@@ -27,3 +27,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+
+      - name: Update floating major version tag
+        run: |
+          MAJOR=$(echo "${GITHUB_REF_NAME}" | grep -oE '^v[0-9]+')
+          git tag -f "${MAJOR}"
+          git push origin "${MAJOR}" --force
