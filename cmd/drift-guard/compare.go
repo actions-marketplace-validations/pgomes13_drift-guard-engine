@@ -90,65 +90,59 @@ func runCompare(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// --- Step 3: generate head spec from current branch ---
-	fmt.Fprintf(os.Stderr, "\nGenerating head spec from current branch...\n")
-	headDir, err := os.MkdirTemp("", "drift-guard-head-*")
+	// --- Step 3: create shared temp dir for both specs ---
+	tmpDir, err := os.MkdirTemp("", "drift-guard-*")
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(headDir)
+	defer os.RemoveAll(tmpDir)
 
-	if err := info.Generate(cwd, headDir); err != nil {
+	// --- Step 4: generate head spec from current branch ---
+	fmt.Fprintf(os.Stderr, "\nGenerating head spec from current branch...\n")
+	headGenDir := filepath.Join(tmpDir, "head-gen")
+	if err := os.MkdirAll(headGenDir, 0o755); err != nil {
+		return err
+	}
+	if err := info.Generate(cwd, headGenDir); err != nil {
 		return fmt.Errorf("generate head schema: %w", err)
 	}
-	headSpec, err := findSchemaFile(headDir)
+	headSpec, err := findSchemaFile(headGenDir)
 	if err != nil {
 		return fmt.Errorf("head spec: %w", err)
 	}
-
-	// --- Step 4: checkout base branch and generate base spec ---
-	baseRef := resolveBaseRef("origin/main")
-	fmt.Fprintf(os.Stderr, "Generating base spec from %s...\n", baseRef)
-
-	worktreeDir, err := os.MkdirTemp("", "drift-guard-base-*")
-	if err != nil {
-		return fmt.Errorf("create worktree dir: %w", err)
-	}
-	defer func() {
-		exec.Command("git", "worktree", "remove", "--force", worktreeDir).Run()
-		os.RemoveAll(worktreeDir)
-	}()
-
-	if out, err := exec.Command("git", "worktree", "add", "--detach", worktreeDir, baseRef).CombinedOutput(); err != nil {
-		return fmt.Errorf("git worktree add %s: %w\n%s", baseRef, err, out)
-	}
-
-	baseDir, err := os.MkdirTemp("", "drift-guard-base-out-*")
-	if err != nil {
-		return fmt.Errorf("create base output dir: %w", err)
-	}
-	defer os.RemoveAll(baseDir)
-
-	if err := runGenerate(worktreeDir, baseDir); err != nil {
-		return fmt.Errorf("generate base schema: %w", err)
-	}
-	baseSpec, err := findSchemaFile(baseDir)
-	if err != nil {
-		return fmt.Errorf("base spec: %w", err)
-	}
-
-	// --- Step 5: copy specs to output locations ---
-	headOut := filepath.Join(filepath.Dir(flagHeadOut), "head.json")
-	baseOut := filepath.Join(filepath.Dir(flagHeadOut), "base.json")
+	headOut := filepath.Join(tmpDir, "head.json")
 	if err := copyFile(headSpec, headOut); err != nil {
 		return err
 	}
+
+	// --- Step 5: checkout base branch and generate base spec ---
+	baseRef := resolveBaseRef("origin/main")
+	fmt.Fprintf(os.Stderr, "Generating base spec from %s...\n", baseRef)
+
+	worktreeDir := filepath.Join(tmpDir, "worktree")
+	if out, err := exec.Command("git", "worktree", "add", "--detach", worktreeDir, baseRef).CombinedOutput(); err != nil {
+		return fmt.Errorf("git worktree add %s: %w\n%s", baseRef, err, out)
+	}
+	defer exec.Command("git", "worktree", "remove", "--force", worktreeDir).Run()
+
+	baseGenDir := filepath.Join(tmpDir, "base-gen")
+	if err := os.MkdirAll(baseGenDir, 0o755); err != nil {
+		return err
+	}
+	if err := runGenerate(worktreeDir, baseGenDir); err != nil {
+		return fmt.Errorf("generate base schema: %w", err)
+	}
+	baseSpec, err := findSchemaFile(baseGenDir)
+	if err != nil {
+		return fmt.Errorf("base spec: %w", err)
+	}
+	baseOut := filepath.Join(tmpDir, "base.json")
 	if err := copyFile(baseSpec, baseOut); err != nil {
 		return err
 	}
 
 	// --- Step 6: diff base vs head ---
-	fmt.Fprintf(os.Stderr, "\nDiffing %s vs %s...\n", baseOut, headOut)
+	fmt.Fprintf(os.Stderr, "\nDiffing base.json vs head.json...\n")
 	result, err := compare.OpenAPI(baseOut, headOut)
 	if err != nil {
 		return err
@@ -283,9 +277,6 @@ func copyFile(src, dst string) error {
 	return nil
 }
 
-var flagHeadOut string
-
 func init() {
-	compareCmd.Flags().StringVar(&flagHeadOut, "output-dir", ".", "Directory to write base.json and head.json")
 	addOutputFlags(compareCmd)
 }
