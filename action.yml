@@ -11,15 +11,17 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./action/setup-deps
+    - uses: pgomes13/drift-guard-engine/action/setup-deps@v1
       with:
         node-version: ${{ inputs.node-version }}
 
-    - uses: ./action/setup-database
+    - uses: pgomes13/drift-guard-engine/action/setup-database@v1
 
-    - uses: ./action/install-binary
+    - uses: pgomes13/drift-guard-engine/action/install-binary@v1
 
-    - uses: ./action/compare
+    - uses: pgomes13/drift-guard-engine/action/compare@v1
+
+    - uses: pgomes13/drift-guard-engine/action/update-pages@v1
 
 branding:
   icon: shield

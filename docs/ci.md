@@ -21,7 +21,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write     # required for updating the drift log on GitHub Pages
   pull-requests: write
   issues: write       # required for posting PR comments
 
@@ -36,7 +36,7 @@ jobs:
       - uses: pgomes13/drift-guard-engine@v1
 ```
 
-> **Note:** Both `pull-requests: write` and `issues: write` are required. GitHub's PR comment API uses the Issues REST endpoint, which needs the `issues: write` permission.
+> **Note:** `contents: write` is required to update the drift log on your GitHub Pages branch. `issues: write` is required because GitHub's PR comment API uses the Issues REST endpoint.
 
 ## Key flags
 

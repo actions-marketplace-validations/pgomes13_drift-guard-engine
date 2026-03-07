@@ -1,0 +1,54 @@
+name: Update drift log on GitHub Pages
+description: Prepends a timestamped drift check entry to drift-log.md on the configured GitHub Pages branch.
+
+runs:
+  using: composite
+  steps:
+    - name: Append to drift log
+      if: github.event_name == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        REPO="${{ github.repository }}"
+        PR_NUMBER="${{ github.event.pull_request.number }}"
+        PR_URL="${{ github.event.pull_request.html_url }}"
+        TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
+
+        # Detect configured Pages branch; fall back to gh-pages.
+        PAGES_BRANCH=$(gh api "repos/${REPO}/pages" --jq '.source.branch' 2>/dev/null || echo "gh-pages")
+
+        # Build the new log entry.
+        if [ -s /tmp/drift-output.txt ]; then
+          CHANGES="$(cat /tmp/drift-output.txt)"
+        else
+          CHANGES="_No API changes detected._"
+        fi
+
+        ENTRY=$(printf '## [PR #%s](%s) — %s\n\n%s\n\n---\n\n' \
+          "$PR_NUMBER" "$PR_URL" "$TIMESTAMP" "$CHANGES")
+
+        # Fetch the existing file. Use exit code — not content — to detect whether it exists.
+        if gh api "repos/${REPO}/contents/drift-log.md?ref=${PAGES_BRANCH}" > /tmp/drift-log-file.json 2>/dev/null; then
+          SHA=$(jq -r '.sha' /tmp/drift-log-file.json)
+          OLD_BODY=$(jq -r '.content' /tmp/drift-log-file.json | tr -d '\n' | base64 -d)
+          HEADER=$(printf '%s' "$OLD_BODY" | head -1)
+          REST=$(printf '%s' "$OLD_BODY" | tail -n +2)
+          NEW_BODY=$(printf '%s\n\n%s%s' "$HEADER" "$ENTRY" "$REST")
+        else
+          SHA=""
+          NEW_BODY=$(printf '# Drift Guard Log\n\n%s' "$ENTRY")
+        fi
+
+        ENCODED=$(printf '%s' "$NEW_BODY" | base64 -w 0)
+
+        PUT_ARGS=(
+          --method PUT
+          "repos/${REPO}/contents/drift-log.md"
+          -f "message=chore: update drift log [PR #${PR_NUMBER}]"
+          -f "content=${ENCODED}"
+          -f "branch=${PAGES_BRANCH}"
+        )
+        [ -n "$SHA" ] && PUT_ARGS+=(-f "sha=${SHA}")
+
+        gh api "${PUT_ARGS[@]}" || true
