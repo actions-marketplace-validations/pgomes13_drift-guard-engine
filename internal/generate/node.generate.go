@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // Node generates a swagger.json in outputDir for the Node project rooted at
@@ -105,29 +106,45 @@ func tsoaSpecFile(projectDir string) (string, error) {
 // --------------------------------------------------------------------------
 
 func runScript(projectDir, scriptPath, outputPath string) error {
-	// Try with tsconfig-paths first; suppress output on this probe.
-	probe := exec.Command("npx", "ts-node", "--transpile-only", "-r", "tsconfig-paths/register", scriptPath)
-	probe.Dir = projectDir
-	probe.Env = append(os.Environ(), "SWAGGER_OUTPUT="+outputPath)
-	if err := probe.Run(); err == nil {
-		return nil
+	args := []string{"ts-node", "--transpile-only"}
+	if hasTsconfigPaths(projectDir) {
+		args = append(args, "-r", "tsconfig-paths/register")
 	}
+	args = append(args, scriptPath)
 
-	// Fallback: without tsconfig-paths.
-	cmd := exec.Command("npx", "ts-node", "--transpile-only", scriptPath)
+	cmd := exec.Command("npx", args...)
 	cmd.Dir = projectDir
 	cmd.Env = append(os.Environ(), "SWAGGER_OUTPUT="+outputPath)
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf(
-			"run Node swagger generator: %w\n\n"+
-				"Hint: create scripts/generate-swagger.ts in your project that writes the\n"+
-				"OpenAPI document to process.env.SWAGGER_OUTPUT, then re-run drift-guard.",
-			err,
-		)
+		hint := "Hint: create scripts/generate-swagger.ts in your project that writes the\n" +
+			"OpenAPI document to process.env.SWAGGER_OUTPUT, then re-run drift-guard."
+		if hasTsconfigPaths(projectDir) {
+			hint = "Your tsconfig.json defines path aliases. Ensure tsconfig-paths is installed:\n\n" +
+				"  npm install --save-dev tsconfig-paths"
+		}
+		return fmt.Errorf("run Node swagger generator: %w\n\n%s", err, hint)
 	}
 	return nil
+}
+
+// hasTsconfigPaths reports whether tsconfig.json in projectDir declares
+// compilerOptions.paths, which requires tsconfig-paths/register at runtime.
+func hasTsconfigPaths(projectDir string) bool {
+	data, err := os.ReadFile(filepath.Join(projectDir, "tsconfig.json"))
+	if err != nil {
+		return false
+	}
+	var tsconfig struct {
+		CompilerOptions struct {
+			Paths map[string]json.RawMessage `json:"paths"`
+		} `json:"compilerOptions"`
+	}
+	if err := json.Unmarshal(data, &tsconfig); err != nil {
+		return strings.Contains(string(data), `"paths"`)
+	}
+	return len(tsconfig.CompilerOptions.Paths) > 0
 }
 
 // --------------------------------------------------------------------------
