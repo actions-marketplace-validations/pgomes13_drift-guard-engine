@@ -9,14 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pgomes13/drift-guard-engine/internal/classifier"
-	differgraphql "github.com/pgomes13/drift-guard-engine/internal/differ/graphql"
-	differgrpc "github.com/pgomes13/drift-guard-engine/internal/differ/grpc"
-	differopenapi "github.com/pgomes13/drift-guard-engine/internal/differ/openapi"
-	"github.com/pgomes13/drift-guard-engine/internal/languages"
-	parsergraphql "github.com/pgomes13/drift-guard-engine/internal/parser/graphql"
-	parsergrpc "github.com/pgomes13/drift-guard-engine/internal/parser/grpc"
-	parseropenapi "github.com/pgomes13/drift-guard-engine/internal/parser/openapi"
+	"github.com/pgomes13/drift-guard-engine/internal/compare"
 	"github.com/pgomes13/drift-guard-engine/internal/reporter"
 )
 
@@ -120,15 +113,10 @@ func runCompareAutoOpenAPI(baseRef string) (basePath, headPath string, cleanup f
 		os.RemoveAll(headOut)
 	}
 
-	gen, err := languages.DetectGenerator(cwd)
-	if err != nil {
-		return "", "", cleanup, err
-	}
-
-	if err := gen(worktreeDir, baseOut); err != nil {
+	if err := runGenerate(worktreeDir, baseOut); err != nil {
 		return "", "", cleanup, fmt.Errorf("generate base schema: %w", err)
 	}
-	if err := gen(cwd, headOut); err != nil {
+	if err := runGenerate(cwd, headOut); err != nil {
 		return "", "", cleanup, fmt.Errorf("generate head schema: %w", err)
 	}
 
@@ -185,16 +173,10 @@ Custom mode (--cmd): runs your command and reads the schema from --output.`,
 			return err
 		}
 
-		baseSchema, err := parseropenapi.Parse(basePath)
+		result, err := compare.OpenAPI(basePath, headPath)
 		if err != nil {
-			return fmt.Errorf("parsing base: %w", err)
+			return err
 		}
-		headSchema, err := parseropenapi.Parse(headPath)
-		if err != nil {
-			return fmt.Errorf("parsing head: %w", err)
-		}
-
-		result := classifier.Classify(basePath, headPath, differopenapi.Diff(baseSchema, headSchema))
 		if err := reporter.Write(cmd.OutOrStdout(), result, reporter.Format(flagFormat)); err != nil {
 			return err
 		}
@@ -220,16 +202,10 @@ var compareGraphqlCmd = &cobra.Command{
 			return err
 		}
 
-		baseSchema, err := parsergraphql.Parse(basePath)
+		result, err := compare.GraphQL(basePath, headPath)
 		if err != nil {
-			return fmt.Errorf("parsing base: %w", err)
+			return err
 		}
-		headSchema, err := parsergraphql.Parse(headPath)
-		if err != nil {
-			return fmt.Errorf("parsing head: %w", err)
-		}
-
-		result := classifier.Classify(basePath, headPath, differgraphql.Diff(baseSchema, headSchema))
 		if err := reporter.Write(cmd.OutOrStdout(), result, reporter.Format(flagFormat)); err != nil {
 			return err
 		}
@@ -255,16 +231,10 @@ var compareGrpcCmd = &cobra.Command{
 			return err
 		}
 
-		baseSchema, err := parsergrpc.Parse(basePath)
+		result, err := compare.GRPC(basePath, headPath)
 		if err != nil {
-			return fmt.Errorf("parsing base: %w", err)
+			return err
 		}
-		headSchema, err := parsergrpc.Parse(headPath)
-		if err != nil {
-			return fmt.Errorf("parsing head: %w", err)
-		}
-
-		result := classifier.Classify(basePath, headPath, differgrpc.Diff(baseSchema, headSchema))
 		if err := reporter.Write(cmd.OutOrStdout(), result, reporter.Format(flagFormat)); err != nil {
 			return err
 		}
