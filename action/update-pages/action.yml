@@ -43,7 +43,7 @@ runs:
         if gh api "repos/${REPO}/contents/index.html?ref=${PAGES_BRANCH}" > /tmp/pages-file.json 2>/dev/null; then
           FILE_SHA=$(jq -r '.sha' /tmp/pages-file.json)
           OLD_HTML=$(jq -r '.content' /tmp/pages-file.json | tr -d '\n' | base64 -d)
-          OLD_ENTRIES=$(printf '%s' "$OLD_HTML" | sed -n '/<!-- ENTRIES -->/,${/<!-- ENTRIES -->/d;p}')
+          OLD_ENTRIES=$(printf '%s' "$OLD_HTML" | sed -n '/<!-- ENTRIES -->/,${/<!-- ENTRIES -->/d;p}' | grep -v ">PR #${PR_NUMBER}<")
           NEW_HTML=$(printf '%s\n%s\n%s\n</body>\n</html>' "$PAGE_HEADER" "$ENTRY" "$OLD_ENTRIES")
         else
           FILE_SHA=""
