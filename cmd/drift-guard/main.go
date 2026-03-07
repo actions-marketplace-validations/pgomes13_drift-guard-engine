@@ -1,18 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 
-	"github.com/pgomes13/drift-guard-engine/internal/classifier"
-	differgraphql "github.com/pgomes13/drift-guard-engine/internal/differ/graphql"
-	differgrpc "github.com/pgomes13/drift-guard-engine/internal/differ/grpc"
-	differopenapi "github.com/pgomes13/drift-guard-engine/internal/differ/openapi"
-	parsergraphql "github.com/pgomes13/drift-guard-engine/internal/parser/graphql"
-	parsergrpc "github.com/pgomes13/drift-guard-engine/internal/parser/grpc"
-	parseropenapi "github.com/pgomes13/drift-guard-engine/internal/parser/openapi"
+	"github.com/pgomes13/drift-guard-engine/internal/compare"
 	"github.com/pgomes13/drift-guard-engine/internal/reporter"
 )
 
@@ -59,16 +52,10 @@ var openapiCmd = &cobra.Command{
 		base, _ := cmd.Flags().GetString("base")
 		head, _ := cmd.Flags().GetString("head")
 
-		baseSchema, err := parseropenapi.Parse(base)
+		result, err := compare.OpenAPI(base, head)
 		if err != nil {
-			return fmt.Errorf("parsing base: %w", err)
+			return err
 		}
-		headSchema, err := parseropenapi.Parse(head)
-		if err != nil {
-			return fmt.Errorf("parsing head: %w", err)
-		}
-
-		result := classifier.Classify(base, head, differopenapi.Diff(baseSchema, headSchema))
 		if err := reporter.Write(cmd.OutOrStdout(), result, reporter.Format(flagFormat)); err != nil {
 			return err
 		}
@@ -92,16 +79,10 @@ var graphqlCmd = &cobra.Command{
 		base, _ := cmd.Flags().GetString("base")
 		head, _ := cmd.Flags().GetString("head")
 
-		baseSchema, err := parsergraphql.Parse(base)
+		result, err := compare.GraphQL(base, head)
 		if err != nil {
-			return fmt.Errorf("parsing base: %w", err)
+			return err
 		}
-		headSchema, err := parsergraphql.Parse(head)
-		if err != nil {
-			return fmt.Errorf("parsing head: %w", err)
-		}
-
-		result := classifier.Classify(base, head, differgraphql.Diff(baseSchema, headSchema))
 		if err := reporter.Write(cmd.OutOrStdout(), result, reporter.Format(flagFormat)); err != nil {
 			return err
 		}
@@ -125,16 +106,10 @@ var grpcCmd = &cobra.Command{
 		base, _ := cmd.Flags().GetString("base")
 		head, _ := cmd.Flags().GetString("head")
 
-		baseSchema, err := parsergrpc.Parse(base)
+		result, err := compare.GRPC(base, head)
 		if err != nil {
-			return fmt.Errorf("parsing base: %w", err)
+			return err
 		}
-		headSchema, err := parsergrpc.Parse(head)
-		if err != nil {
-			return fmt.Errorf("parsing head: %w", err)
-		}
-
-		result := classifier.Classify(base, head, differgrpc.Diff(baseSchema, headSchema))
 		if err := reporter.Write(cmd.OutOrStdout(), result, reporter.Format(flagFormat)); err != nil {
 			return err
 		}
