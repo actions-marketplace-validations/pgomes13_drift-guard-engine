@@ -78,9 +78,8 @@ runs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        LATEST=$(curl -sSfL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/pgomes13/drift-guard-engine/releases/latest | jq -r '.tag_name')
-        echo "Installing drift-guard $LATEST"
-        curl -sSfL -H "Authorization: Bearer $GH_TOKEN" "https://github.com/pgomes13/drift-guard-engine/releases/download/${LATEST}/drift-guard_Linux_x86_64.tar.gz" | tar -xz
+        gh release download --repo pgomes13/drift-guard-engine --pattern "drift-guard_Linux_x86_64.tar.gz"
+        tar -xz drift-guard_Linux_x86_64.tar.gz
         sudo mv drift-guard /usr/local/bin/drift-guard
 
     - name: Run API drift comparison
