@@ -4,10 +4,7 @@ Run drift-guard locally to check for API drift before adding it to CI.
 
 ## Install
 
-```sh
-brew tap pgomes13/tap
-brew install drift-guard
-```
+See [Installation](/install) for all install options.
 
 ## Run on your repository
 

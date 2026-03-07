@@ -37,23 +37,3 @@ drift-guard grpc --base proto/base.proto --head proto/head.proto --fail-on-break
 drift-guard openapi --base base.yaml --head head.yaml --format github
 ```
 
-## Compare branches automatically
-
-`drift-guard compare` auto-detects your project type and API types, generates schemas for the current branch and the base branch (`origin/main` / `origin/master`), and diffs them.
-
-```sh
-drift-guard compare
-```
-
-Supported Node.js frameworks: **Express**, **NestJS**. More language and framework support coming soon.
-
-### Progress output
-
-After confirming, each step is shown with a live spinner and a checkmark on completion:
-
-```
-  ✓  Installing dependencies
-  ✓  Generating head schema
-  ✓  Generating base schema
-  ✓  Comparing
-```
