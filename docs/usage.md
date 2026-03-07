@@ -1,10 +1,10 @@
 # Usage
 
+## Diff two schema files
+
 ```sh
 drift-guard <command> --base <file> --head <file> [--format <format>] [--fail-on-breaking]
 ```
-
-## Commands
 
 | Command   | Description                                 |
 | --------- | ------------------------------------------- |
@@ -12,7 +12,7 @@ drift-guard <command> --base <file> --head <file> [--format <format>] [--fail-on
 | `graphql` | Diff two GraphQL SDL schemas                |
 | `grpc`    | Diff two Protobuf schemas (`.proto`)        |
 
-## Flags
+### Flags
 
 | Flag                 | Description                                         | Default  |
 | -------------------- | --------------------------------------------------- | -------- |
@@ -21,7 +21,7 @@ drift-guard <command> --base <file> --head <file> [--format <format>] [--fail-on
 | `-f, --format`       | Output format: `text`, `json`, `github`             | `text`   |
 | `--fail-on-breaking` | Exit with code `1` if breaking changes are detected | `false`  |
 
-## Examples
+### Examples
 
 ```sh
 # OpenAPI — text output
@@ -36,3 +36,15 @@ drift-guard grpc --base proto/base.proto --head proto/head.proto --fail-on-break
 # GitHub Actions annotations
 drift-guard openapi --base base.yaml --head head.yaml --format github
 ```
+
+## Compare branches automatically
+
+`drift-guard compare` auto-detects your project type, generates OpenAPI specs for the current branch and the base branch (`origin/main` / `origin/master`), and diffs them.
+
+```sh
+drift-guard compare
+```
+
+Supported project types: **Go**, **Express**, **NestJS**, **Node.js**.
+
+On first run for a plain Express project, drift-guard scaffolds a `swagger-autogen` script into `drift-guard/scripts/generate-swagger.js` automatically. All generated files are cleaned up after the comparison.

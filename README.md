@@ -1,8 +1,8 @@
-# drift-guard-engine
+# drift-guard
 
-A schema diff engine that detects and classifies breaking vs. non-breaking API contract changes across **OpenAPI**, **GraphQL**, and **gRPC** schemas.
+Detect and classify breaking vs. non-breaking API contract changes across **OpenAPI**, **GraphQL**, and **gRPC** schemas.
 
-**[Full documentation](https://pgomes13.github.io/drift-guard-engine)**
+**[Full documentation →](https://pgomes13.github.io/drift-guard-engine)**
 
 ## Quick install
 
@@ -14,14 +14,12 @@ brew install drift-guard
 ## Quick start
 
 ```sh
+# Diff two schema files
 drift-guard openapi --base api/base.yaml --head api/head.yaml --format github --fail-on-breaking
-```
 
-## Release
+# Auto-generate and compare specs between branches
+drift-guard compare
 
-Tag a version to trigger GoReleaser — cross-compiles for macOS, Linux, and Windows and publishes to the [Homebrew tap](https://github.com/pgomes13/homebrew-tap):
-
-```sh
-git tag v1.0.0
-git push origin v1.0.0
+# GitHub Action — one line
+- uses: pgomes13/drift-guard-engine@v1
 ```
