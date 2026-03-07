@@ -87,4 +87,8 @@ release:
 	esac; \
 	echo "Next:    $$NEXT"; \
 	git tag -f "$$NEXT"; \
-	git push origin "$$NEXT" --force
+	git push origin "$$NEXT" --force; \
+	MAJOR_VER=$$(echo "$$NEXT" | grep -oE '^v[0-9]+'); \
+	git tag -f "$$MAJOR_VER"; \
+	git push origin "$$MAJOR_VER" --force; \
+	echo "Floating tag updated: $$MAJOR_VER -> $$NEXT"
