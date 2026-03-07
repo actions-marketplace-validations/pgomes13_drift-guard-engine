@@ -129,6 +129,12 @@ func runCompare(cmd *cobra.Command, args []string) error {
 	}
 	defer exec.Command("git", "worktree", "remove", "--force", worktreeDir).Run()
 
+	// Copy drift-guard/scripts/ into the worktree so the base branch can use
+	// the same generation script that was scaffolded for the head branch.
+	if err := copyDir(filepath.Join(driftGuardDir, "scripts"), filepath.Join(worktreeDir, "drift-guard", "scripts")); err != nil {
+		return fmt.Errorf("copy scripts to worktree: %w", err)
+	}
+
 	baseGenDir := filepath.Join(tmpDir, "base-gen")
 	if err := os.MkdirAll(baseGenDir, 0o755); err != nil {
 		return err
@@ -258,6 +264,20 @@ func findSchemaFile(dir string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no schema file found in %s", dir)
+}
+
+func copyDir(src, dst string) error {
+	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(src, path)
+		target := filepath.Join(dst, rel)
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		return copyFile(path, target)
+	})
 }
 
 func copyFile(src, dst string) error {
