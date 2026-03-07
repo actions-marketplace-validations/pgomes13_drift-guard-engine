@@ -11,15 +11,41 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Detect package manager
+      id: pm
+      shell: bash
+      run: |
+        if [ -f "pnpm-lock.yaml" ]; then
+          echo "manager=pnpm" >> $GITHUB_OUTPUT
+          echo "cache=pnpm" >> $GITHUB_OUTPUT
+        elif [ -f "yarn.lock" ]; then
+          echo "manager=yarn" >> $GITHUB_OUTPUT
+          echo "cache=yarn" >> $GITHUB_OUTPUT
+        else
+          echo "manager=npm" >> $GITHUB_OUTPUT
+          echo "cache=npm" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Set up pnpm
+      if: steps.pm.outputs.manager == 'pnpm'
+      uses: pnpm/action-setup@v4
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
-        cache: npm
+        cache: ${{ steps.pm.outputs.cache }}
 
     - name: Install project dependencies
       shell: bash
-      run: npm ci
+      run: |
+        if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
+          pnpm install --frozen-lockfile
+        elif [ "${{ steps.pm.outputs.manager }}" = "yarn" ]; then
+          yarn install --frozen-lockfile
+        else
+          npm ci
+        fi
 
     - name: Install drift-guard
       shell: bash
