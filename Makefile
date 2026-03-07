@@ -3,7 +3,7 @@ CMD              := ./cmd/drift-guard
 HOMEBREW_TAP     := pgomes13/homebrew-tap
 FORMULA          := drift-guard
 
-.PHONY: build test vet lint clean run-openapi run-graphql run-grpc release major minor patch gha homebrew commit
+.PHONY: build test vet lint clean run-openapi run-graphql run-grpc release major minor patch gha homebrew commit override
 
 build:
 	go build -o $(BIN) $(CMD)
@@ -47,6 +47,7 @@ commit:
 ##   make release          # bump patch → tag → push → update floating major tag
 ##   make release minor    # bump minor → tag → push → update floating major tag
 ##   make release major    # bump major → tag → push → update floating major tag
+##   make release override # re-tag current version (force) → push → update floating major tag
 ##   make release gha      # force-update floating major tag only (no version bump)
 ##
 ## Pushing the semver tag triggers the release.yml workflow (goreleaser + Homebrew update).
@@ -58,7 +59,7 @@ else
   _bump := patch
 endif
 
-major minor patch homebrew:
+major minor patch homebrew override:
 	@true
 
 release:
@@ -68,6 +69,19 @@ ifneq (,$(filter gha,$(MAKECMDGOALS)))
 	if [ -z "$$LATEST" ]; then echo "error: no version tag found"; exit 1; fi; \
 	FLOAT=$$(echo "$$LATEST" | grep -oE '^v[0-9]+'); \
 	echo "Updating floating tag $$FLOAT → $$LATEST"; \
+	git tag -f "$$FLOAT"; \
+	git push origin "$$FLOAT" --force
+else ifneq (,$(filter override,$(MAKECMDGOALS)))
+	@set -e; \
+	CURRENT=$$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null); \
+	if [ -z "$$CURRENT" ]; then \
+		echo "error: no semver tag found in repo (expected v<major>.<minor>.<patch>)"; exit 1; \
+	fi; \
+	echo "Re-tagging: $$CURRENT (force)"; \
+	git tag -f "$$CURRENT"; \
+	git push origin "$$CURRENT" --force; \
+	FLOAT=$$(echo "$$CURRENT" | grep -oE '^v[0-9]+'); \
+	echo "Updating floating tag $$FLOAT → $$CURRENT"; \
 	git tag -f "$$FLOAT"; \
 	git push origin "$$FLOAT" --force
 else
@@ -86,8 +100,8 @@ else
 		patch) NEXT="v$$MAJOR.$$MINOR.$$((PATCH + 1))" ;; \
 	esac; \
 	echo "Next:    $$NEXT  ($(_bump) bump)"; \
-	git tag "$$NEXT"; \
-	git push origin "$$NEXT"; \
+	git tag -f "$$NEXT"; \
+	git push origin "$$NEXT" --force; \
 	FLOAT=$$(echo "$$NEXT" | grep -oE '^v[0-9]+'); \
 	echo "Updating floating tag $$FLOAT → $$NEXT"; \
 	git tag -f "$$FLOAT"; \
