@@ -36,7 +36,10 @@ runs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        BODY="$(printf '## Drift Guard Report\n\n'; cat /tmp/drift-output.txt)"
+        OWNER=$(printf '%s' "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+        REPO_NAME=$(printf '%s' "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
+        PAGES_URL="https://${OWNER}.github.io/${REPO_NAME}/"
+        BODY="$(printf '## Drift Guard Report\n\n'; cat /tmp/drift-output.txt; printf '\n\n---\n[View full drift log](%s)' "$PAGES_URL")"
         gh api \
           --method POST \
           "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
