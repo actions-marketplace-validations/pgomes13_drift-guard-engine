@@ -6,16 +6,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 )
 
 // Node generates a swagger.json in outputDir for the Node project rooted at
 // projectDir.
 //
 // Strategy (in order):
-//  1. tsoa    — if tsoa.json is present, run `npx tsoa spec` and copy the result.
-//  2. Script  — look for an existing scripts/generate-swagger.ts (or .js).
-//  3. Scaffold — write a temporary NestJS bootstrap script and run it.
+//  1. tsoa   — if tsoa.json is present, run `npx tsoa spec` and copy the result.
+//  2. Script — look for an existing scripts/generate-swagger.ts (or .js).
+//  3. Error  — instruct the user to add tsoa.
 func Node(projectDir, outputDir string) error {
 	// 1. tsoa
 	if _, err := os.Stat(filepath.Join(projectDir, "tsoa.json")); err == nil {
@@ -38,15 +37,16 @@ func Node(projectDir, outputDir string) error {
 		}
 	}
 
-	// 3. Scaffold a temporary NestJS bootstrap script.
-	scriptPath := filepath.Join(projectDir, ".drift-guard-swagger-gen.ts")
-	defer os.Remove(scriptPath) //nolint:errcheck
-
-	content := nestJSScript(projectDir)
-	if err := os.WriteFile(scriptPath, []byte(content), 0o600); err != nil {
-		return fmt.Errorf("scaffold Node swagger script: %w", err)
-	}
-	return runScript(projectDir, scriptPath, outputPath)
+	// 3. No auto-generation possible — guide the user to set up tsoa.
+	return fmt.Errorf(
+		"no OpenAPI generator found in %s\n\n"+
+			"Add tsoa for zero-config generation:\n\n"+
+			"  npm install --save-dev tsoa\n"+
+			"  npx tsoa init          # creates tsoa.json\n\n"+
+			"Or use --cmd to provide your own generator:\n\n"+
+			`  drift-guard compare openapi --cmd "node scripts/gen.js" --output swagger.json`,
+		projectDir,
+	)
 }
 
 // --------------------------------------------------------------------------
@@ -128,41 +128,6 @@ func runScript(projectDir, scriptPath, outputPath string) error {
 		)
 	}
 	return nil
-}
-
-// --------------------------------------------------------------------------
-// NestJS scaffold
-// --------------------------------------------------------------------------
-
-func nestJSScript(projectDir string) string {
-	appModule := "./src/app.module"
-	candidates := []string{"src/app.module.ts", "src/app.module.js"}
-	for _, c := range candidates {
-		if _, err := os.Stat(filepath.Join(projectDir, c)); err == nil {
-			appModule = "./" + strings.TrimSuffix(filepath.ToSlash(c), filepath.Ext(c))
-			break
-		}
-	}
-
-	return fmt.Sprintf(`import { NestFactory } from '@nestjs/core';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { writeFileSync } from 'fs';
-import { AppModule } from '%s';
-
-async function generate() {
-  const app = await NestFactory.create(AppModule, { logger: false });
-  const config = new DocumentBuilder()
-    .setTitle('API')
-    .setVersion('1.0')
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  const outputPath = process.env.SWAGGER_OUTPUT || 'swagger.json';
-  writeFileSync(outputPath, JSON.stringify(document, null, 2));
-  await app.close();
-}
-
-generate().catch(err => { console.error(err); process.exit(1); });
-`, appModule)
 }
 
 // --------------------------------------------------------------------------

@@ -21,16 +21,12 @@ func DetectGenerator(dir string) (GeneratorFunc, error) {
 
 	// NestJS project (Node.js + @nestjs/swagger)
 	if isNestJSProject(dir) {
-		return GenerateNode, nil
+		return GenerateNest, nil
 	}
 
-	// Plain Node.js project (package.json without NestJS)
+	// Plain Node.js project (package.json without NestJS) — tsoa works here too.
 	if isNodeJSProject(dir) {
-		return nil, fmt.Errorf(
-			"detected Node.js project\n\n" +
-				"Auto-generation requires @nestjs/swagger. Use --cmd for other frameworks:\n\n" +
-				`    drift-guard compare openapi --cmd "node scripts/generate-swagger.js" --output swagger.json`,
-		)
+		return GenerateNode, nil
 	}
 
 	// Python project
