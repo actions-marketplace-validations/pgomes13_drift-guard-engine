@@ -1,4 +1,4 @@
-package nestjs
+package nest
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pgomes13/drift-guard-engine/internal/generate/node"
+	"github.com/pgomes13/drift-guard-engine/internal/generate/node/express"
 )
 
 // Nest generates a swagger.json in outputDir for the NestJS project rooted at
@@ -21,7 +21,7 @@ import (
 func Nest(projectDir, outputDir string) error {
 	// 1. tsoa
 	if _, err := os.Stat(filepath.Join(projectDir, "tsoa.json")); err == nil {
-		return node.TsoaSpec(projectDir, outputDir)
+		return express.TsoaSpec(projectDir, outputDir)
 	}
 
 	outputPath := filepath.Join(outputDir, "swagger.json")
@@ -36,7 +36,7 @@ func Nest(projectDir, outputDir string) error {
 	for _, rel := range candidates {
 		full := filepath.Join(projectDir, rel)
 		if _, err := os.Stat(full); err == nil {
-			return node.RunScript(projectDir, full, outputPath)
+			return express.RunScript(projectDir, full, outputPath)
 		}
 	}
 
@@ -86,7 +86,7 @@ func nestSwagger(projectDir, outputPath string) error {
 	}
 	tmp.Close()
 
-	if err := node.RunScript(projectDir, tmp.Name(), outputPath); err != nil {
+	if err := express.RunScript(projectDir, tmp.Name(), outputPath); err != nil {
 		return fmt.Errorf("nestjs/swagger auto-generation failed")
 	}
 	return nil

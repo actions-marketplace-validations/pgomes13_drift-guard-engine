@@ -1,4 +1,4 @@
-package node
+package express
 
 import (
 	"encoding/json"
@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// Node generates a swagger.json in outputDir for the Node project rooted at
-// projectDir.
+// Node generates a swagger.json in outputDir for the Node/Express project
+// rooted at projectDir.
 //
 // Strategy (in order):
 //  1. tsoa   — if tsoa.json is present, run `npx tsoa spec` and copy the result.
@@ -103,7 +103,7 @@ func tsoaSpecFile(projectDir string) (string, error) {
 }
 
 // --------------------------------------------------------------------------
-// ts-node script runner
+// ts-node / node script runner
 // --------------------------------------------------------------------------
 
 // RunScript executes scriptPath with the project's settings, setting
@@ -129,10 +129,6 @@ func runJsScript(projectDir, scriptPath, outputPath string) error {
 }
 
 func runTsScript(projectDir, scriptPath, outputPath string) error {
-	// --skip-project avoids inheriting the project's tsconfig (which may use
-	// "module":"nodenext" / ESM, incompatible with require-hooks). We supply a
-	// minimal known-good CJS config. tsconfig-paths/register still reads the
-	// project tsconfig.json independently to resolve baseUrl/paths.
 	args := []string{
 		"ts-node", "--transpile-only", "--skip-project",
 		"--compiler-options", `{"module":"CommonJS","moduleResolution":"node","experimentalDecorators":true,"emitDecoratorMetadata":true,"esModuleInterop":true,"allowSyntheticDefaultImports":true,"target":"ES2021","skipLibCheck":true}`,
@@ -159,9 +155,6 @@ func runTsScript(projectDir, scriptPath, outputPath string) error {
 	return nil
 }
 
-// hasTsconfigPaths reports whether tsconfig.json in projectDir uses baseUrl or
-// paths-based module resolution, which requires tsconfig-paths/register at
-// runtime so that bare imports (e.g. "iam/auth") resolve correctly.
 func hasTsconfigPaths(projectDir string) bool {
 	data, err := os.ReadFile(filepath.Join(projectDir, "tsconfig.json"))
 	if err != nil {
@@ -174,17 +167,12 @@ func hasTsconfigPaths(projectDir string) bool {
 		} `json:"compilerOptions"`
 	}
 	if err := json.Unmarshal(data, &tsconfig); err != nil {
-		// Likely JSONC — fall back to raw string search.
 		return strings.Contains(string(data), `"baseUrl"`) ||
 			strings.Contains(string(data), `"paths"`)
 	}
 	return tsconfig.CompilerOptions.BaseURL != "" ||
 		len(tsconfig.CompilerOptions.Paths) > 0
 }
-
-// --------------------------------------------------------------------------
-// helpers
-// --------------------------------------------------------------------------
 
 func copyFile(src, dst string) error {
 	in, err := os.ReadFile(src)

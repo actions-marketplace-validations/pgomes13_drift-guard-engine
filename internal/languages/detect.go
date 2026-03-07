@@ -26,6 +26,9 @@ func DetectProjectInfo(dir string) (ProjectInfo, error) {
 	if isNestJSProject(dir) {
 		return ProjectInfo{"NestJS", GenerateNest}, nil
 	}
+	if isExpressProject(dir) {
+		return ProjectInfo{"Express", GenerateNode}, nil
+	}
 	if isNodeJSProject(dir) {
 		return ProjectInfo{"Node.js", GenerateNode}, nil
 	}
@@ -54,12 +57,17 @@ func DetectGenerator(dir string) (GeneratorFunc, error) {
 		return GenerateGo, nil
 	}
 
-	// NestJS project (Node.js + @nestjs/swagger)
+	// NestJS project
 	if isNestJSProject(dir) {
 		return GenerateNest, nil
 	}
 
-	// Plain Node.js project (package.json without NestJS) — tsoa works here too.
+	// Express project (package.json with express, not NestJS)
+	if isExpressProject(dir) {
+		return GenerateNode, nil
+	}
+
+	// Generic Node.js project
 	if isNodeJSProject(dir) {
 		return GenerateNode, nil
 	}

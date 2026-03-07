@@ -1,6 +1,6 @@
 package languages
 
-import "github.com/pgomes13/drift-guard-engine/internal/generate/nestjs"
+import "github.com/pgomes13/drift-guard-engine/internal/generate/node/nest"
 
-// GenerateNest delegates to the nestjs generate package.
-var GenerateNest = nestjs.Nest
+// GenerateNest delegates to the nest generate package.
+var GenerateNest = nest.Nest

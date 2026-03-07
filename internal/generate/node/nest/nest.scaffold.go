@@ -1,4 +1,4 @@
-package nestjs
+package nest
 
 import (
 	"fmt"

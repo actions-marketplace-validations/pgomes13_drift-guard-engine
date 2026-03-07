@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pgomes13/drift-guard-engine/internal/generate/nestjs"
-	"github.com/pgomes13/drift-guard-engine/internal/generate/node"
+	"github.com/pgomes13/drift-guard-engine/internal/generate/node/express"
+	"github.com/pgomes13/drift-guard-engine/internal/generate/node/nest"
 	"github.com/pgomes13/drift-guard-engine/internal/languages"
 )
 
@@ -52,24 +52,24 @@ func runGenerateWizard(cmd *cobra.Command, args []string) error {
 			if !promptYesNo("Proceed to add script?") {
 				return nil
 			}
-			written, err := nestjs.ScaffoldNestSwaggerScript(cwd)
+			written, err := nest.ScaffoldNestSwaggerScript(cwd)
 			if err != nil {
 				return err
 			}
 			fmt.Fprintf(os.Stderr, "scaffold written to %s\n", written)
 
-		case "Node.js":
-			if !node.HasTsoaControllers(cwd) {
+		case "Express", "Node.js":
+			if !express.HasTsoaControllers(cwd) {
 				if !promptYesNo("Set up swagger-autogen for plain Express generation?") {
 					break
 				}
-				written, err := node.ScaffoldSwaggerAutogenScript(cwd)
+				written, err := express.ScaffoldSwaggerAutogenScript(cwd)
 				if err != nil {
 					return err
 				}
 				fmt.Fprintf(os.Stderr, "script written to %s\n", written)
 				fmt.Fprintf(os.Stderr, "Installing swagger-autogen...\n")
-				if err := node.InstallSwaggerAutogen(cwd); err != nil {
+				if err := express.InstallSwaggerAutogen(cwd); err != nil {
 					return err
 				}
 				break
@@ -77,13 +77,13 @@ func runGenerateWizard(cmd *cobra.Command, args []string) error {
 			if !promptYesNo("Set up tsoa for zero-config generation?") {
 				return nil
 			}
-			written, err := node.ScaffoldTsoa(cwd)
+			written, err := express.ScaffoldTsoa(cwd)
 			if err != nil {
 				return err
 			}
 			fmt.Fprintf(os.Stderr, "tsoa.json written to %s\n", written)
 			fmt.Fprintf(os.Stderr, "Installing tsoa...\n")
-			if err := node.InstallTsoa(cwd); err != nil {
+			if err := express.InstallTsoa(cwd); err != nil {
 				return err
 			}
 		}

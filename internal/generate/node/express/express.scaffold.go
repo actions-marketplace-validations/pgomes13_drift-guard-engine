@@ -1,4 +1,4 @@
-package node
+package express
 
 import (
 	"encoding/json"
@@ -8,61 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 )
-
-// ScaffoldTsoa writes a tsoa.json with sensible defaults to projectDir and
-// returns the path of the file written.
-func ScaffoldTsoa(projectDir string) (string, error) {
-	outPath := filepath.Join(projectDir, "tsoa.json")
-
-	entryFile := detectEntryFile(projectDir)
-
-	cfg := map[string]any{
-		"entryFile":                      entryFile,
-		"noImplicitAdditionalProperties": "throw",
-		"controllerPathGlobs":            []string{"src/**/*.controller.ts"},
-		"spec": map[string]any{
-			"outputDirectory": "build",
-			"specVersion":     3,
-		},
-		"routes": map[string]any{
-			"routesDir": "build",
-		},
-	}
-
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("marshal tsoa config: %w", err)
-	}
-
-	if err := os.WriteFile(outPath, append(data, '\n'), 0o644); err != nil {
-		return "", fmt.Errorf("write tsoa.json: %w", err)
-	}
-	return outPath, nil
-}
-
-// InstallTsoa runs the appropriate package manager install command to add tsoa
-// as a dev dependency.
-func InstallTsoa(projectDir string) error {
-	pm := detectPackageManager(projectDir)
-	var args []string
-	switch pm {
-	case "pnpm":
-		args = []string{"add", "--save-dev", "tsoa"}
-	case "yarn":
-		args = []string{"add", "--dev", "tsoa"}
-	default:
-		args = []string{"install", "--save-dev", "tsoa"}
-		pm = "npm"
-	}
-	cmd := exec.Command(pm, args...)
-	cmd.Dir = projectDir
-	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%s install tsoa: %w", pm, err)
-	}
-	return nil
-}
 
 // HasTsoaControllers reports whether the project at projectDir uses tsoa
 // controller decorators (@Route, @Get, etc.). Returns false for plain Express
@@ -162,6 +107,60 @@ func InstallSwaggerAutogen(projectDir string) error {
 	return nil
 }
 
+// ScaffoldTsoa writes a tsoa.json with sensible defaults to projectDir and
+// returns the path of the file written.
+func ScaffoldTsoa(projectDir string) (string, error) {
+	outPath := filepath.Join(projectDir, "tsoa.json")
+
+	entryFile := detectEntryFile(projectDir)
+
+	cfg := map[string]any{
+		"entryFile":                      entryFile,
+		"noImplicitAdditionalProperties": "throw",
+		"controllerPathGlobs":            []string{"src/**/*.controller.ts"},
+		"spec": map[string]any{
+			"outputDirectory": "build",
+			"specVersion":     3,
+		},
+		"routes": map[string]any{
+			"routesDir": "build",
+		},
+	}
+
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("marshal tsoa config: %w", err)
+	}
+
+	if err := os.WriteFile(outPath, append(data, '\n'), 0o644); err != nil {
+		return "", fmt.Errorf("write tsoa.json: %w", err)
+	}
+	return outPath, nil
+}
+
+// InstallTsoa runs the appropriate package manager install command to add tsoa
+// as a dev dependency.
+func InstallTsoa(projectDir string) error {
+	pm := detectPackageManager(projectDir)
+	var args []string
+	switch pm {
+	case "pnpm":
+		args = []string{"add", "--save-dev", "tsoa"}
+	case "yarn":
+		args = []string{"add", "--dev", "tsoa"}
+	default:
+		args = []string{"install", "--save-dev", "tsoa"}
+		pm = "npm"
+	}
+	cmd := exec.Command(pm, args...)
+	cmd.Dir = projectDir
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s install tsoa: %w", pm, err)
+	}
+	return nil
+}
 
 func detectEntryFile(projectDir string) string {
 	candidates := []string{
