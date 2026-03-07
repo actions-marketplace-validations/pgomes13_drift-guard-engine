@@ -106,12 +106,13 @@ func tsoaSpecFile(projectDir string) (string, error) {
 // --------------------------------------------------------------------------
 
 func runScript(projectDir, scriptPath, outputPath string) error {
-	// Force CommonJS compilation so require-hooks work even when the project's
-	// tsconfig uses "module": "nodenext" / ESM. This only affects transpilation,
-	// not the project's own build output.
+	// --skip-project avoids inheriting the project's tsconfig (which may use
+	// "module":"nodenext" / ESM, incompatible with require-hooks). We supply a
+	// minimal known-good CJS config. tsconfig-paths/register still reads the
+	// project tsconfig.json independently to resolve baseUrl/paths.
 	args := []string{
-		"ts-node", "--transpile-only",
-		"--compiler-options", `{"module":"CommonJS","moduleResolution":"node","resolvePackageJsonExports":false,"resolvePackageJsonImports":false}`,
+		"ts-node", "--transpile-only", "--skip-project",
+		"--compiler-options", `{"module":"CommonJS","moduleResolution":"node","experimentalDecorators":true,"emitDecoratorMetadata":true,"esModuleInterop":true,"allowSyntheticDefaultImports":true,"target":"ES2021","skipLibCheck":true}`,
 	}
 	if hasTsconfigPaths(projectDir) {
 		args = append(args, "-r", "tsconfig-paths/register")
