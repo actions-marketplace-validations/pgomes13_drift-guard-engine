@@ -129,8 +129,9 @@ func runScript(projectDir, scriptPath, outputPath string) error {
 	return nil
 }
 
-// hasTsconfigPaths reports whether tsconfig.json in projectDir declares
-// compilerOptions.paths, which requires tsconfig-paths/register at runtime.
+// hasTsconfigPaths reports whether tsconfig.json in projectDir uses baseUrl or
+// paths-based module resolution, which requires tsconfig-paths/register at
+// runtime so that bare imports (e.g. "iam/auth") resolve correctly.
 func hasTsconfigPaths(projectDir string) bool {
 	data, err := os.ReadFile(filepath.Join(projectDir, "tsconfig.json"))
 	if err != nil {
@@ -138,13 +139,17 @@ func hasTsconfigPaths(projectDir string) bool {
 	}
 	var tsconfig struct {
 		CompilerOptions struct {
-			Paths map[string]json.RawMessage `json:"paths"`
+			BaseURL string                     `json:"baseUrl"`
+			Paths   map[string]json.RawMessage `json:"paths"`
 		} `json:"compilerOptions"`
 	}
 	if err := json.Unmarshal(data, &tsconfig); err != nil {
-		return strings.Contains(string(data), `"paths"`)
+		// Likely JSONC — fall back to raw string search.
+		return strings.Contains(string(data), `"baseUrl"`) ||
+			strings.Contains(string(data), `"paths"`)
 	}
-	return len(tsconfig.CompilerOptions.Paths) > 0
+	return tsconfig.CompilerOptions.BaseURL != "" ||
+		len(tsconfig.CompilerOptions.Paths) > 0
 }
 
 // --------------------------------------------------------------------------
