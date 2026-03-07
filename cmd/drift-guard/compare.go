@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,250 +12,271 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/pgomes13/drift-guard-engine/internal/compare"
+	"github.com/pgomes13/drift-guard-engine/internal/generate/node/express"
+	"github.com/pgomes13/drift-guard-engine/internal/generate/node/nest"
+	"github.com/pgomes13/drift-guard-engine/internal/languages"
 	"github.com/pgomes13/drift-guard-engine/internal/reporter"
 )
 
 var compareCmd = &cobra.Command{
 	Use:   "compare",
-	Short: "Generate schemas from code and diff them",
-	Long: `Generate API schemas by running against both the base and head revisions of the
-repository, then diff the results.
-
-For OpenAPI, schema generation is automatic (uses swaggo/swag) when --cmd is omitted.
-Uses git worktree to check out the base ref without modifying the working tree.`,
+	Short: "Compare API schemas between current branch and base branch",
+	Long: `Detect the project type, generate an OpenAPI spec from the current branch
+(head.json) and from the base branch (base.json), then diff them.`,
+	RunE: runCompare,
 }
 
-// shared compare flags
-var (
-	flagGenBaseRef string
-	flagGenCmd     string
-	flagGenOutput  string
-)
-
-func addCompareFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVar(&flagGenBaseRef, "base-ref", "origin/main", "Git ref to use as the base (before) revision")
-	cmd.Flags().StringVar(&flagGenCmd, "cmd", "", "Command to run to generate the schema file (optional; auto-detected for OpenAPI)")
-	cmd.Flags().StringVar(&flagGenOutput, "output", "", "Relative path where --cmd writes the schema file (required when --cmd is set)")
-}
-
-func addCompareFlagsRequired(cmd *cobra.Command) {
-	addCompareFlags(cmd)
-	_ = cmd.MarkFlagRequired("cmd")
-	_ = cmd.MarkFlagRequired("output")
-}
-
-// --------------------------------------------------------------------------
-// worktree helpers
-// --------------------------------------------------------------------------
-
-// setupWorktree checks out baseRef into a temp directory and returns
-// (worktreeDir, cwd, cleanup, err).
-func setupWorktree(baseRef string) (worktreeDir, cwd string, cleanup func(), err error) {
-	cleanup = func() {}
-
-	cwd, err = os.Getwd()
+func runCompare(cmd *cobra.Command, args []string) error {
+	cwd, err := os.Getwd()
 	if err != nil {
-		return "", "", cleanup, fmt.Errorf("get working directory: %w", err)
+		return fmt.Errorf("get working directory: %w", err)
 	}
 
-	worktreeDir, err = os.MkdirTemp("", "drift-guard-base-*")
+	// --- Step 1: detect project type ---
+	info, err := languages.DetectProjectInfo(cwd)
 	if err != nil {
-		return "", "", cleanup, fmt.Errorf("create temp dir: %w", err)
+		return err
 	}
-	cleanup = func() {
-		exec.Command("git", "worktree", "remove", "--force", worktreeDir).Run() //nolint:errcheck
-		os.RemoveAll(worktreeDir)
+	fmt.Fprintf(os.Stderr, "Project detected: %s\n", info.TypeName)
+	if !promptYesNo("Proceed?") {
+		return nil
 	}
 
+	// --- Step 2: scaffold generation script if needed ---
+	specFound := swaggerSpecExists(cwd)
+	scriptFound := swaggerScriptExists(cwd)
+	fmt.Fprintf(os.Stderr, "\nSwagger (openapi) file detected: %s\n", yesNo(specFound || scriptFound))
+
+	if !(specFound || scriptFound) {
+		switch info.TypeName {
+		case "NestJS":
+			if !promptYesNo("Proceed to add script?") {
+				return nil
+			}
+			written, err := nest.ScaffoldNestSwaggerScript(cwd)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "scaffold written to %s\n", written)
+
+		case "Express", "Node.js":
+			if !express.HasTsoaControllers(cwd) {
+				if !promptYesNo("Set up swagger-autogen for plain Express generation?") {
+					break
+				}
+				written, err := express.ScaffoldSwaggerAutogenScript(cwd)
+				if err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "script written to %s\n", written)
+				fmt.Fprintf(os.Stderr, "Installing swagger-autogen...\n")
+				if err := express.InstallSwaggerAutogen(cwd); err != nil {
+					return err
+				}
+				break
+			}
+			if !promptYesNo("Set up tsoa for zero-config generation?") {
+				return nil
+			}
+			written, err := express.ScaffoldTsoa(cwd)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "tsoa.json written to %s\n", written)
+			fmt.Fprintf(os.Stderr, "Installing tsoa...\n")
+			if err := express.InstallTsoa(cwd); err != nil {
+				return err
+			}
+		}
+	}
+
+	// --- Step 3: create shared temp dir for both specs ---
+	tmpDir, err := os.MkdirTemp("", "drift-guard-*")
+	if err != nil {
+		return fmt.Errorf("create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// --- Step 4: generate head spec from current branch ---
+	fmt.Fprintf(os.Stderr, "\nGenerating head spec from current branch...\n")
+	headGenDir := filepath.Join(tmpDir, "head-gen")
+	if err := os.MkdirAll(headGenDir, 0o755); err != nil {
+		return err
+	}
+	if err := info.Generate(cwd, headGenDir); err != nil {
+		return fmt.Errorf("generate head schema: %w", err)
+	}
+	headSpec, err := findSchemaFile(headGenDir)
+	if err != nil {
+		return fmt.Errorf("head spec: %w", err)
+	}
+	headOut := filepath.Join(tmpDir, "head.json")
+	if err := copyFile(headSpec, headOut); err != nil {
+		return err
+	}
+
+	// --- Step 5: checkout base branch and generate base spec ---
+	baseRef := resolveBaseRef("origin/main")
+	fmt.Fprintf(os.Stderr, "Generating base spec from %s...\n", baseRef)
+
+	worktreeDir := filepath.Join(tmpDir, "worktree")
 	if out, err := exec.Command("git", "worktree", "add", "--detach", worktreeDir, baseRef).CombinedOutput(); err != nil {
-		return "", "", cleanup, fmt.Errorf("git worktree add %s: %w\n%s", baseRef, err, out)
+		return fmt.Errorf("git worktree add %s: %w\n%s", baseRef, err, out)
 	}
-	return worktreeDir, cwd, cleanup, nil
-}
+	defer exec.Command("git", "worktree", "remove", "--force", worktreeDir).Run()
 
-// runCompare runs genCmd in both the base worktree and current dir, returning
-// the two schema file paths.
-func runCompare(baseRef, genCmd, outputPath string) (basePath, headPath string, cleanup func(), err error) {
-	worktreeDir, cwd, cleanup, err := setupWorktree(baseRef)
+	baseGenDir := filepath.Join(tmpDir, "base-gen")
+	if err := os.MkdirAll(baseGenDir, 0o755); err != nil {
+		return err
+	}
+	if err := runGenerate(worktreeDir, baseGenDir); err != nil {
+		return fmt.Errorf("generate base schema: %w", err)
+	}
+	baseSpec, err := findSchemaFile(baseGenDir)
 	if err != nil {
-		return "", "", cleanup, err
+		return fmt.Errorf("base spec: %w", err)
+	}
+	baseOut := filepath.Join(tmpDir, "base.json")
+	if err := copyFile(baseSpec, baseOut); err != nil {
+		return err
 	}
 
-	if err := runCmd(genCmd, worktreeDir); err != nil {
-		return "", "", cleanup, fmt.Errorf("generate base schema: %w", err)
-	}
-	if err := runCmd(genCmd, cwd); err != nil {
-		return "", "", cleanup, fmt.Errorf("generate head schema: %w", err)
-	}
-
-	return filepath.Join(worktreeDir, outputPath), filepath.Join(cwd, outputPath), cleanup, nil
-}
-
-// runCompareAutoOpenAPI detects the project type and generates OpenAPI schemas
-// for both base and head revisions.
-func runCompareAutoOpenAPI(baseRef string) (basePath, headPath string, cleanup func(), err error) {
-	worktreeDir, cwd, worktreeCleanup, err := setupWorktree(baseRef)
+	// --- Step 6: diff base vs head ---
+	fmt.Fprintf(os.Stderr, "\nDiffing base.json vs head.json...\n")
+	result, err := compare.OpenAPI(baseOut, headOut)
 	if err != nil {
-		return "", "", worktreeCleanup, err
+		return err
 	}
+	if err := reporter.Write(cmd.OutOrStdout(), result, reporter.Format(flagFormat)); err != nil {
+		return err
+	}
+	if flagFailOnBreak && reporter.HasBreakingChanges(result) {
+		os.Exit(1)
+	}
+	return nil
+}
 
-	baseOut, err := os.MkdirTemp("", "drift-guard-schema-base-*")
+// runGenerate auto-detects the project type and generates an OpenAPI schema
+// for the project at projectDir, writing output files into outputDir.
+func runGenerate(projectDir, outputDir string) error {
+	gen, err := languages.DetectGenerator(projectDir)
 	if err != nil {
-		return "", "", worktreeCleanup, err
+		return err
 	}
-	headOut, err := os.MkdirTemp("", "drift-guard-schema-head-*")
+	return gen(projectDir, outputDir)
+}
+
+// resolveBaseRef returns the first of the candidates that exists as a valid git ref.
+func resolveBaseRef(baseRef string) string {
+	if refExists(baseRef) {
+		return baseRef
+	}
+	for _, candidate := range []string{"origin/master", "HEAD~1"} {
+		if refExists(candidate) {
+			fmt.Fprintf(os.Stderr, "base-ref %q not found, using %q\n", baseRef, candidate)
+			return candidate
+		}
+	}
+	return baseRef
+}
+
+func refExists(ref string) bool {
+	return exec.Command("git", "rev-parse", "--verify", ref).Run() == nil
+}
+
+// --------------------------------------------------------------------------
+// helpers
+// --------------------------------------------------------------------------
+
+// stdinReader is shared across all promptYesNo calls so that bufio buffering
+// doesn't consume input intended for a subsequent prompt.
+var stdinReader = bufio.NewReader(os.Stdin)
+
+// promptYesNo prints prompt and reads a Y/n response from stdin.
+// An empty response (just Enter) defaults to Yes.
+func promptYesNo(prompt string) bool {
+	fmt.Fprintf(os.Stderr, "%s [Y/n]: ", prompt)
+	line, _ := stdinReader.ReadString('\n')
+	line = strings.TrimSpace(strings.ToLower(line))
+	return line == "" || line == "y" || line == "yes"
+}
+
+// swaggerSpecExists reports whether a swagger/openapi spec file already exists
+// in common locations under dir.
+func swaggerSpecExists(dir string) bool {
+	candidates := []string{
+		"swagger.json", "swagger.yaml", "swagger.yml",
+		"openapi.json", "openapi.yaml", "openapi.yml",
+		"docs/swagger.json", "docs/swagger.yaml",
+		"api/swagger.json", "api/openapi.json",
+	}
+	for _, rel := range candidates {
+		if _, err := os.Stat(filepath.Join(dir, rel)); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// swaggerScriptExists reports whether a swagger generation script or tsoa
+// config is already present in the project.
+func swaggerScriptExists(dir string) bool {
+	candidates := []string{
+		"tsoa.json",
+		"scripts/generate-swagger.ts",
+		"scripts/generate-swagger.js",
+		"src/generate-swagger.ts",
+		"generate-swagger.ts",
+	}
+	for _, rel := range candidates {
+		if _, err := os.Stat(filepath.Join(dir, rel)); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func yesNo(b bool) string {
+	if b {
+		return "Yes"
+	}
+	return "No"
+}
+
+// findSchemaFile finds the generated schema file in dir.
+func findSchemaFile(dir string) (string, error) {
+	for _, name := range []string{"swagger.yaml", "swagger.json", "docs.yaml", "docs.json"} {
+		p := filepath.Join(dir, name)
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+	return "", fmt.Errorf("no schema file found in %s", dir)
+}
+
+func copyFile(src, dst string) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	in, err := os.Open(src)
 	if err != nil {
-		os.RemoveAll(baseOut)
-		return "", "", worktreeCleanup, err
+		return err
 	}
+	defer in.Close()
 
-	cleanup = func() {
-		worktreeCleanup()
-		os.RemoveAll(baseOut)
-		os.RemoveAll(headOut)
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
 	}
+	defer out.Close()
 
-	if err := runGenerate(worktreeDir, baseOut); err != nil {
-		return "", "", cleanup, fmt.Errorf("generate base schema: %w", err)
+	if _, err := io.Copy(out, in); err != nil {
+		return err
 	}
-	if err := runGenerate(cwd, headOut); err != nil {
-		return "", "", cleanup, fmt.Errorf("generate head schema: %w", err)
-	}
-
-	return filepath.Join(baseOut, "swagger.yaml"), filepath.Join(headOut, "swagger.yaml"), cleanup, nil
-}
-
-func runCmd(command, dir string) error {
-	parts := strings.Fields(command)
-	if len(parts) == 0 {
-		return fmt.Errorf("empty command")
-	}
-	cmd := exec.Command(parts[0], parts[1:]...)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-// --------------------------------------------------------------------------
-// compare openapi
-// --------------------------------------------------------------------------
-
-var compareOpenapiCmd = &cobra.Command{
-	Use:   "openapi",
-	Short: "Generate OpenAPI schemas from code and diff them",
-	Long: `Generates OpenAPI schemas from both the base ref and the current branch, then diffs them.
-
-Auto mode (no --cmd): uses swaggo/swag with auto-detected project structure.
-Custom mode (--cmd): runs your command and reads the schema from --output.`,
-	Example: `  # Auto mode — zero config, requires swag
-  drift-guard compare openapi
-
-  # Custom generator
-  drift-guard compare openapi --cmd "swag init --generalInfo cmd/api/main.go" --output docs/swagger.yaml
-
-  # Against a specific base ref
-  drift-guard compare openapi --base-ref origin/release --fail-on-breaking`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if flagGenCmd != "" && flagGenOutput == "" {
-			return fmt.Errorf("--output is required when --cmd is set")
-		}
-
-		var basePath, headPath string
-		var cleanup func()
-		var err error
-
-		if flagGenCmd != "" {
-			basePath, headPath, cleanup, err = runCompare(flagGenBaseRef, flagGenCmd, flagGenOutput)
-		} else {
-			basePath, headPath, cleanup, err = runCompareAutoOpenAPI(flagGenBaseRef)
-		}
-		defer cleanup()
-		if err != nil {
-			return err
-		}
-
-		result, err := compare.OpenAPI(basePath, headPath)
-		if err != nil {
-			return err
-		}
-		if err := reporter.Write(cmd.OutOrStdout(), result, reporter.Format(flagFormat)); err != nil {
-			return err
-		}
-		if flagFailOnBreak && reporter.HasBreakingChanges(result) {
-			os.Exit(1)
-		}
-		return nil
-	},
-}
-
-// --------------------------------------------------------------------------
-// compare graphql
-// --------------------------------------------------------------------------
-
-var compareGraphqlCmd = &cobra.Command{
-	Use:     "graphql",
-	Short:   "Generate GraphQL schemas from code and diff them",
-	Example: `  drift-guard compare graphql --cmd "go run ./tools/gen-schema.go" --output schema/schema.graphql --fail-on-breaking`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		basePath, headPath, cleanup, err := runCompare(flagGenBaseRef, flagGenCmd, flagGenOutput)
-		defer cleanup()
-		if err != nil {
-			return err
-		}
-
-		result, err := compare.GraphQL(basePath, headPath)
-		if err != nil {
-			return err
-		}
-		if err := reporter.Write(cmd.OutOrStdout(), result, reporter.Format(flagFormat)); err != nil {
-			return err
-		}
-		if flagFailOnBreak && reporter.HasBreakingChanges(result) {
-			os.Exit(1)
-		}
-		return nil
-	},
-}
-
-// --------------------------------------------------------------------------
-// compare grpc
-// --------------------------------------------------------------------------
-
-var compareGrpcCmd = &cobra.Command{
-	Use:     "grpc",
-	Short:   "Generate Protobuf schemas from code and diff them",
-	Example: `  drift-guard compare grpc --cmd "buf export . --output /tmp/proto" --output api.proto --fail-on-breaking`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		basePath, headPath, cleanup, err := runCompare(flagGenBaseRef, flagGenCmd, flagGenOutput)
-		defer cleanup()
-		if err != nil {
-			return err
-		}
-
-		result, err := compare.GRPC(basePath, headPath)
-		if err != nil {
-			return err
-		}
-		if err := reporter.Write(cmd.OutOrStdout(), result, reporter.Format(flagFormat)); err != nil {
-			return err
-		}
-		if flagFailOnBreak && reporter.HasBreakingChanges(result) {
-			os.Exit(1)
-		}
-		return nil
-	},
+	fmt.Fprintf(os.Stderr, "schema written to %s\n", dst)
+	return nil
 }
 
 func init() {
-	addCompareFlags(compareOpenapiCmd)
-	addOutputFlags(compareOpenapiCmd)
-
-	addCompareFlagsRequired(compareGraphqlCmd)
-	addOutputFlags(compareGraphqlCmd)
-
-	addCompareFlagsRequired(compareGrpcCmd)
-	addOutputFlags(compareGrpcCmd)
-
-	compareCmd.AddCommand(compareOpenapiCmd, compareGraphqlCmd, compareGrpcCmd)
+	addOutputFlags(compareCmd)
 }
