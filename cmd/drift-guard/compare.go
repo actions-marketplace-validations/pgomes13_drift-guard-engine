@@ -42,6 +42,10 @@ func runCompare(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// All drift-guard generated artifacts live under drift-guard/ and are
+	// removed after the comparison completes.
+	driftGuardDir := filepath.Join(cwd, "drift-guard")
+
 	// --- Step 2: scaffold generation script if needed ---
 	specFound := swaggerSpecExists(cwd)
 	scriptFound := swaggerScriptExists(cwd)
@@ -53,7 +57,7 @@ func runCompare(cmd *cobra.Command, args []string) error {
 			if !promptYesNo("Proceed to add script?") {
 				return nil
 			}
-			written, err := nest.ScaffoldNestSwaggerScript(cwd)
+			written, err := nest.ScaffoldNestSwaggerScript(driftGuardDir)
 			if err != nil {
 				return err
 			}
@@ -64,7 +68,7 @@ func runCompare(cmd *cobra.Command, args []string) error {
 				if !promptYesNo("Set up swagger-autogen for plain Express generation?") {
 					break
 				}
-				written, err := express.ScaffoldSwaggerAutogenScript(cwd)
+				written, err := express.ScaffoldSwaggerAutogenScript(driftGuardDir)
 				if err != nil {
 					return err
 				}
@@ -90,12 +94,12 @@ func runCompare(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// --- Step 3: create shared temp dir for both specs ---
-	tmpDir, err := os.MkdirTemp("", "drift-guard-*")
-	if err != nil {
+	// --- Step 3: create temp dir inside drift-guard/ ---
+	tmpDir := filepath.Join(driftGuardDir, "tmp")
+	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer os.RemoveAll(driftGuardDir)
 
 	// --- Step 4: generate head spec from current branch ---
 	fmt.Fprintf(os.Stderr, "\nGenerating head spec from current branch...\n")
@@ -223,6 +227,8 @@ func swaggerSpecExists(dir string) bool {
 func swaggerScriptExists(dir string) bool {
 	candidates := []string{
 		"tsoa.json",
+		"drift-guard/scripts/generate-swagger.ts",
+		"drift-guard/scripts/generate-swagger.js",
 		"scripts/generate-swagger.ts",
 		"scripts/generate-swagger.js",
 		"src/generate-swagger.ts",
