@@ -3,7 +3,7 @@ CMD              := ./cmd/drift-guard
 HOMEBREW_TAP     := pgomes13/homebrew-tap
 FORMULA          := drift-guard
 
-.PHONY: build test vet lint clean run-openapi run-graphql run-grpc release major minor patch gha homebrew commit override
+.PHONY: build test vet lint clean run-openapi run-graphql run-grpc release major minor patch homebrew commit override
 
 build:
 	go build -o $(BIN) $(CMD)
@@ -44,11 +44,10 @@ commit:
 ## Release targets
 ##
 ## Usage:
-##   make release          # bump patch → tag → push → update floating major tag
-##   make release minor    # bump minor → tag → push → update floating major tag
-##   make release major    # bump major → tag → push → update floating major tag
-##   make release override # re-tag current version (force) → push → update floating major tag
-##   make release gha      # force-update floating major tag only (no version bump)
+##   make release          # bump patch → tag → push
+##   make release minor    # bump minor → tag → push
+##   make release major    # bump major → tag → push
+##   make release override # re-tag current version (force) → push
 ##
 ## Pushing the semver tag triggers the release.yml workflow (goreleaser + Homebrew update).
 ifneq (,$(filter major,$(MAKECMDGOALS)))
@@ -63,16 +62,7 @@ major minor patch homebrew override:
 	@true
 
 release:
-ifneq (,$(filter gha,$(MAKECMDGOALS)))
-	@set -e; \
-	LATEST=$$(git tag --list 'v*.*.*' --points-at HEAD --sort=-version:refname | head -1); \
-	if [ -z "$$LATEST" ]; then LATEST=$$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null); fi; \
-	if [ -z "$$LATEST" ]; then echo "error: no version tag found"; exit 1; fi; \
-	FLOAT=$$(echo "$$LATEST" | grep -oE '^v[0-9]+'); \
-	echo "Updating floating tag $$FLOAT → $$LATEST"; \
-	git tag -f "$$FLOAT"; \
-	git push origin "$$FLOAT" --force
-else ifneq (,$(filter override,$(MAKECMDGOALS)))
+ifneq (,$(filter override,$(MAKECMDGOALS)))
 	@set -e; \
 	CURRENT=$$(git tag --list 'v*.*.*' --points-at HEAD --sort=-version:refname | head -1); \
 	if [ -z "$$CURRENT" ]; then CURRENT=$$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null); fi; \
@@ -81,11 +71,7 @@ else ifneq (,$(filter override,$(MAKECMDGOALS)))
 	fi; \
 	echo "Re-tagging: $$CURRENT (force)"; \
 	git tag -f "$$CURRENT"; \
-	git push origin "$$CURRENT" --force; \
-	FLOAT=$$(echo "$$CURRENT" | grep -oE '^v[0-9]+'); \
-	echo "Updating floating tag $$FLOAT → $$CURRENT"; \
-	git tag -f "$$FLOAT"; \
-	git push origin "$$FLOAT" --force
+	git push origin "$$CURRENT" --force
 else
 	@set -e; \
 	_TAG=$$(git tag --list 'v*.*.*' --points-at HEAD --sort=-version:refname | head -1); \
@@ -103,14 +89,7 @@ else
 		minor) NEXT="v$$MAJOR.$$((MINOR + 1)).0" ;; \
 		patch) NEXT="v$$MAJOR.$$MINOR.$$((PATCH + 1))" ;; \
 	esac; \
-	echo "Next:    $$NEXT  ($(_bump) bump)"; \
+	echo "Next:    $$NEXT"; \
 	git tag -f "$$NEXT"; \
-	git push origin "$$NEXT" --force; \
-	FLOAT=$$(echo "$$NEXT" | grep -oE '^v[0-9]+'); \
-	echo "Updating floating tag $$FLOAT → $$NEXT"; \
-	git tag -f "$$FLOAT"; \
-	git push origin "$$FLOAT" --force
+	git push origin "$$NEXT" --force
 endif
-
-gha:
-	@true
