@@ -55,6 +55,22 @@ func nodeHasGraphQLDeps(dir string) bool {
 	return false
 }
 
+// hasProtoFilesInDir reports whether any .proto files exist under dir.
+func hasProtoFilesInDir(dir string) bool {
+	for _, sub := range []string{"proto", "protos", "src/proto", "src/protos", "grpc", "."} {
+		entries, err := os.ReadDir(filepath.Join(dir, filepath.FromSlash(sub)))
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if !e.IsDir() && len(e.Name()) > 6 && e.Name()[len(e.Name())-6:] == ".proto" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // hasGraphQLSchema reports whether a GraphQL schema file exists in dir.
 func hasGraphQLSchema(dir string) bool {
 	for _, rel := range []string{

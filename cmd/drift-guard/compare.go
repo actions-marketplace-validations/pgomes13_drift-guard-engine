@@ -49,6 +49,13 @@ func runCompare(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// --- Step 1c: offer gRPC comparison if detected ---
+	if grpcInfo := languages.DetectGRPCInfo(cwd); grpcInfo != nil {
+		if promptYesNo("Compare gRPC schemas?") {
+			return runGRPCCompare(cmd, cwd, grpcInfo)
+		}
+	}
+
 	if !promptYesNo("Proceed?") {
 		return nil
 	}
@@ -249,6 +256,94 @@ func runGraphQLCompare(cmd *cobra.Command, cwd string, info *languages.GraphQLPr
 		os.Exit(1)
 	}
 	return nil
+}
+
+// runGRPCCompare finds gRPC proto schemas for head and base branches and diffs them.
+func runGRPCCompare(cmd *cobra.Command, cwd string, info *languages.GRPCProjectInfo) error {
+	driftGuardDir := filepath.Join(cwd, "drift-guard")
+	tmpDir := filepath.Join(driftGuardDir, "tmp")
+	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
+		return fmt.Errorf("create temp dir: %w", err)
+	}
+	defer os.RemoveAll(driftGuardDir)
+
+	headOut := filepath.Join(tmpDir, "head.proto")
+	if err := runStep("Collecting head gRPC schema", func() error {
+		headGenDir := filepath.Join(tmpDir, "head-gen")
+		if err := os.MkdirAll(headGenDir, 0o755); err != nil {
+			return err
+		}
+		if err := info.GenerateRPC(cwd, headGenDir); err != nil {
+			return fmt.Errorf("collect head schema: %w", err)
+		}
+		headProto, err := findProtoFile(headGenDir)
+		if err != nil {
+			return fmt.Errorf("head schema: %w", err)
+		}
+		return copyFile(headProto, headOut)
+	}); err != nil {
+		return err
+	}
+
+	baseRef := resolveBaseRef("origin/main")
+	baseOut := filepath.Join(tmpDir, "base.proto")
+	worktreeDir := filepath.Join(tmpDir, "worktree")
+	defer exec.Command("git", "worktree", "remove", "--force", worktreeDir).Run()
+
+	if err := runStep(fmt.Sprintf("Collecting base gRPC schema (%s)", baseRef), func() error {
+		if out, err := exec.Command("git", "worktree", "add", "--detach", worktreeDir, baseRef).CombinedOutput(); err != nil {
+			return fmt.Errorf("git worktree add %s: %w\n%s", baseRef, err, out)
+		}
+		baseGenDir := filepath.Join(tmpDir, "base-gen")
+		if err := os.MkdirAll(baseGenDir, 0o755); err != nil {
+			return err
+		}
+		if err := runGRPCGenerate(worktreeDir, baseGenDir); err != nil {
+			return fmt.Errorf("collect base schema: %w", err)
+		}
+		baseProto, err := findProtoFile(baseGenDir)
+		if err != nil {
+			return fmt.Errorf("base schema: %w", err)
+		}
+		return copyFile(baseProto, baseOut)
+	}); err != nil {
+		return err
+	}
+
+	var diffResult schema.DiffResult
+	if err := runStep("Comparing", func() error {
+		var err error
+		diffResult, err = compare.GRPC(baseOut, headOut)
+		return err
+	}); err != nil {
+		return err
+	}
+	if err := reporter.Write(cmd.OutOrStdout(), diffResult, reporter.Format(flagFormat)); err != nil {
+		return err
+	}
+	if flagFailOnBreak && reporter.HasBreakingChanges(diffResult) {
+		os.Exit(1)
+	}
+	return nil
+}
+
+// runGRPCGenerate auto-detects the project type and collects the gRPC proto schema
+// for the project at projectDir, writing output files into outputDir.
+func runGRPCGenerate(projectDir, outputDir string) error {
+	gen, err := languages.DetectGRPCGenerator(projectDir)
+	if err != nil {
+		return err
+	}
+	return gen(projectDir, outputDir)
+}
+
+// findProtoFile finds the generated proto schema file in dir.
+func findProtoFile(dir string) (string, error) {
+	p := filepath.Join(dir, "schema.proto")
+	if _, err := os.Stat(p); err == nil {
+		return p, nil
+	}
+	return "", fmt.Errorf("no .proto file found in %s", dir)
 }
 
 // runGraphQLGenerate auto-detects the project type and generates a GraphQL schema

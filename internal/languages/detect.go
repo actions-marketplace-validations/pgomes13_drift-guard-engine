@@ -78,6 +78,36 @@ func DetectGraphQLGenerator(dir string) (GeneratorFunc, error) {
 	return nil, fmt.Errorf("could not detect project type for GraphQL generation in %s", dir)
 }
 
+// GRPCProjectInfo holds the human-readable project type name alongside the
+// gRPC generator function resolved for that project.
+type GRPCProjectInfo struct {
+	TypeName    string
+	GenerateRPC GeneratorFunc
+}
+
+// DetectGRPCInfo returns gRPC project info if the project contains .proto files,
+// or nil if no gRPC API is detected.
+func DetectGRPCInfo(dir string) *GRPCProjectInfo {
+	if isNestJSProject(dir) && hasProtoFilesInDir(dir) {
+		return &GRPCProjectInfo{"NestJS", GenerateNestGRPC}
+	}
+	if (isExpressProject(dir) || isNodeJSProject(dir)) && hasProtoFilesInDir(dir) {
+		return &GRPCProjectInfo{"Express", GenerateNodeGRPC}
+	}
+	return nil
+}
+
+// DetectGRPCGenerator returns the gRPC generator for the project at dir.
+func DetectGRPCGenerator(dir string) (GeneratorFunc, error) {
+	if isNestJSProject(dir) {
+		return GenerateNestGRPC, nil
+	}
+	if isExpressProject(dir) || isNodeJSProject(dir) {
+		return GenerateNodeGRPC, nil
+	}
+	return nil, fmt.Errorf("could not detect project type for gRPC generation in %s", dir)
+}
+
 // DetectGenerator inspects dir and returns the appropriate schema generation
 // function, or an error with actionable instructions when auto-generation is
 // not supported.
