@@ -65,7 +65,8 @@ major minor patch homebrew override:
 release:
 ifneq (,$(filter gha,$(MAKECMDGOALS)))
 	@set -e; \
-	LATEST=$$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null); \
+	LATEST=$$(git tag --list 'v*.*.*' --points-at HEAD --sort=-version:refname | head -1); \
+	if [ -z "$$LATEST" ]; then LATEST=$$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null); fi; \
 	if [ -z "$$LATEST" ]; then echo "error: no version tag found"; exit 1; fi; \
 	FLOAT=$$(echo "$$LATEST" | grep -oE '^v[0-9]+'); \
 	echo "Updating floating tag $$FLOAT → $$LATEST"; \
@@ -73,7 +74,8 @@ ifneq (,$(filter gha,$(MAKECMDGOALS)))
 	git push origin "$$FLOAT" --force
 else ifneq (,$(filter override,$(MAKECMDGOALS)))
 	@set -e; \
-	CURRENT=$$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null); \
+	CURRENT=$$(git tag --list 'v*.*.*' --points-at HEAD --sort=-version:refname | head -1); \
+	if [ -z "$$CURRENT" ]; then CURRENT=$$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null); fi; \
 	if [ -z "$$CURRENT" ]; then \
 		echo "error: no semver tag found in repo (expected v<major>.<minor>.<patch>)"; exit 1; \
 	fi; \
@@ -86,7 +88,9 @@ else ifneq (,$(filter override,$(MAKECMDGOALS)))
 	git push origin "$$FLOAT" --force
 else
 	@set -e; \
-	CURRENT=$$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null | sed 's/^v//'); \
+	_TAG=$$(git tag --list 'v*.*.*' --points-at HEAD --sort=-version:refname | head -1); \
+	if [ -z "$$_TAG" ]; then _TAG=$$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null); fi; \
+	CURRENT=$$(echo "$$_TAG" | sed 's/^v//'); \
 	if [ -z "$$CURRENT" ]; then \
 		echo "error: no semver tag found in repo (expected v<major>.<minor>.<patch>)"; exit 1; \
 	fi; \

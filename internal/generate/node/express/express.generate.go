@@ -145,19 +145,20 @@ func runTsScript(projectDir, scriptPath, outputPath string) error {
 	}
 	args = append(args, scriptPath)
 
+	// Always capture stderr so we can include it in error messages, even when
+	// SubprocessOutput is io.Discard (e.g. during a spinner).
+	var errBuf strings.Builder
 	cmd := exec.Command("npx", args...)
 	cmd.Dir = projectDir
 	cmd.Env = append(os.Environ(), "SWAGGER_OUTPUT="+outputPath)
 	cmd.Stdout = SubprocessOutput
-	cmd.Stderr = SubprocessOutput
+	cmd.Stderr = io.MultiWriter(SubprocessOutput, &errBuf)
 	if err := cmd.Run(); err != nil {
-		hint := "Hint: create scripts/generate-swagger.ts in your project that writes the\n" +
-			"OpenAPI document to process.env.SWAGGER_OUTPUT, then re-run drift-guard."
-		if hasTsconfigPaths(projectDir) {
-			hint = "Your tsconfig.json uses baseUrl/paths. Ensure tsconfig-paths is installed:\n\n" +
-				"  npm install --save-dev tsconfig-paths"
+		detail := strings.TrimSpace(errBuf.String())
+		if detail != "" {
+			return fmt.Errorf("run Node swagger generator: %w\n\n%s", err, detail)
 		}
-		return fmt.Errorf("run Node swagger generator: %w\n\n%s", err, hint)
+		return fmt.Errorf("run Node swagger generator: %w", err)
 	}
 	return nil
 }

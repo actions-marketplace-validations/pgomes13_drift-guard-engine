@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 )
 
-// ScaffoldNestSwaggerScript writes a starter scripts/generate-swagger.ts to
-// projectDir (creating the scripts/ directory if needed). It returns the path
-// of the file that was written.
+// ScaffoldNestSwaggerScript writes a starter drift-guard/scripts/generate-swagger.ts
+// to projectDir (creating the directory if needed). It returns the path of the
+// file that was written.
 func ScaffoldNestSwaggerScript(projectDir string) (string, error) {
-	outPath := filepath.Join(projectDir, "scripts", "generate-swagger.ts")
+	outPath := filepath.Join(projectDir, "drift-guard", "scripts", "generate-swagger.ts")
 
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 		return "", fmt.Errorf("create scripts directory: %w", err)
@@ -28,21 +28,23 @@ func ScaffoldNestSwaggerScript(projectDir string) (string, error) {
 // detectAppModuleRelPath returns a relative import path for the AppModule,
 // suitable for use inside scripts/generate-swagger.ts.
 func detectAppModuleRelPath(projectDir string) string {
+	// Script lives at drift-guard/scripts/generate-swagger.ts, so imports
+	// need two levels up (../../) to reach the project root.
 	candidates := []struct {
 		rel     string
 		import_ string
 	}{
-		{"src/app.module.ts", "../src/app.module"},
-		{"src/app.module.js", "../src/app.module"},
-		{"app.module.ts", "../app.module"},
-		{"app.module.js", "../app.module"},
+		{"src/app.module.ts", "../../src/app.module"},
+		{"src/app.module.js", "../../src/app.module"},
+		{"app.module.ts", "../../app.module"},
+		{"app.module.js", "../../app.module"},
 	}
 	for _, c := range candidates {
 		if _, err := os.Stat(filepath.Join(projectDir, c.rel)); err == nil {
 			return c.import_
 		}
 	}
-	return "../src/app.module"
+	return "../../src/app.module"
 }
 
 // buildNestSwaggerScaffold returns the TypeScript source for the scaffold.
@@ -80,6 +82,22 @@ func buildNestSwaggerScaffold(appModuleRelPath string) string {
  *   await app.init();
  * -----------------------------------------------------------------------
  */
+
+// Load .env into process.env using only Node builtins (no dotenv package needed).
+// This ensures TypeORM / ConfigModule can read DB credentials before app init.
+(function loadEnv() {
+  const fs = require('fs');
+  const path = require('path');
+  try {
+    const lines = fs.readFileSync(path.join(process.cwd(), '.env'), 'utf8').split('\n');
+    for (const line of lines) {
+      const m = line.match(/^\s*([^#\s][^=]*?)\s*=\s*(.*?)\s*$/);
+      if (m && process.env[m[1]] === undefined) {
+        process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
+      }
+    }
+  } catch (_) {}
+})();
 
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';

@@ -74,7 +74,7 @@ func runCompare(cmd *cobra.Command, args []string) error {
 			if !promptYesNo("Proceed to add script?") {
 				return nil
 			}
-			if _, err := nest.ScaffoldNestSwaggerScript(driftGuardDir); err != nil {
+			if _, err := nest.ScaffoldNestSwaggerScript(cwd); err != nil {
 				return err
 			}
 
@@ -83,7 +83,7 @@ func runCompare(cmd *cobra.Command, args []string) error {
 				if !promptYesNo("Set up swagger-autogen for plain Express generation?") {
 					break
 				}
-				if _, err := express.ScaffoldSwaggerAutogenScript(driftGuardDir); err != nil {
+				if _, err := express.ScaffoldSwaggerAutogenScript(cwd); err != nil {
 					return err
 				}
 				if err := runStep("Installing swagger-autogen", func() error {
@@ -115,7 +115,7 @@ func runCompare(cmd *cobra.Command, args []string) error {
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(driftGuardDir)
+	defer os.RemoveAll(tmpDir)
 
 	// --- Step 4: generate head spec from current branch ---
 	headOut := filepath.Join(tmpDir, "head.json")
@@ -152,6 +152,10 @@ func runCompare(cmd *cobra.Command, args []string) error {
 			if err := copyFile(src, dst); err != nil {
 				return fmt.Errorf("copy script to worktree: %w", err)
 			}
+		}
+		// Copy .env so the generation script can read credentials.
+		if src := filepath.Join(cwd, ".env"); pathExists(src) {
+			_ = copyFile(src, filepath.Join(worktreeDir, ".env"))
 		}
 		baseGenDir := filepath.Join(tmpDir, "base-gen")
 		if err := os.MkdirAll(baseGenDir, 0o755); err != nil {
@@ -194,7 +198,7 @@ func runGraphQLCompare(cmd *cobra.Command, cwd string, info *languages.GraphQLPr
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(driftGuardDir)
+	defer os.RemoveAll(tmpDir)
 
 	express.SubprocessOutput = io.Discard
 
@@ -265,7 +269,7 @@ func runGRPCCompare(cmd *cobra.Command, cwd string, info *languages.GRPCProjectI
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(driftGuardDir)
+	defer os.RemoveAll(tmpDir)
 
 	headOut := filepath.Join(tmpDir, "head.proto")
 	if err := runStep("Collecting head gRPC schema", func() error {
@@ -543,6 +547,11 @@ func findSchemaFile(dir string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no schema file found in %s", dir)
+}
+
+func pathExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
 }
 
 func copyDir(src, dst string) error {
