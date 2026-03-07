@@ -65,7 +65,13 @@ release:
 ifneq (,$(filter override,$(MAKECMDGOALS)))
 	@set -e; \
 	CURRENT=$$(git tag --list 'v*.*.*' --points-at HEAD --sort=-version:refname | head -1); \
-	if [ -z "$$CURRENT" ]; then CURRENT=$$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null); fi; \
+	if [ -z "$$CURRENT" ]; then \
+		CURRENT=$$(git log --decorate=short --pretty=format:"%D" | \
+		  while IFS= read -r _line; do \
+		    _t=$$(printf '%s' "$$_line" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -t. -k1,1 -k2,2n -k3,3n | tail -1); \
+		    if [ -n "$$_t" ]; then printf '%s\n' "$$_t"; break; fi; \
+		  done); \
+	fi; \
 	if [ -z "$$CURRENT" ]; then \
 		echo "error: no semver tag found in repo (expected v<major>.<minor>.<patch>)"; exit 1; \
 	fi; \
@@ -75,7 +81,13 @@ ifneq (,$(filter override,$(MAKECMDGOALS)))
 else
 	@set -e; \
 	_TAG=$$(git tag --list 'v*.*.*' --points-at HEAD --sort=-version:refname | head -1); \
-	if [ -z "$$_TAG" ]; then _TAG=$$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null); fi; \
+	if [ -z "$$_TAG" ]; then \
+		_TAG=$$(git log --decorate=short --pretty=format:"%D" | \
+		  while IFS= read -r _line; do \
+		    _t=$$(printf '%s' "$$_line" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -t. -k1,1 -k2,2n -k3,3n | tail -1); \
+		    if [ -n "$$_t" ]; then printf '%s\n' "$$_t"; break; fi; \
+		  done); \
+	fi; \
 	CURRENT=$$(echo "$$_TAG" | sed 's/^v//'); \
 	if [ -z "$$CURRENT" ]; then \
 		echo "error: no semver tag found in repo (expected v<major>.<minor>.<patch>)"; exit 1; \
