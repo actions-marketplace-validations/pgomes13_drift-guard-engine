@@ -1,6 +1,7 @@
 package generate
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,7 +14,8 @@ import (
 // Strategy (in order):
 //  1. tsoa   — if tsoa.json is present, run `npx tsoa spec` and copy the result.
 //  2. Script — look for an existing scripts/generate-swagger.ts (or .js).
-//  3. Scaffold — write a temporary NestJS bootstrap script and run it.
+//  3. Swagger — if @nestjs/swagger is installed, scaffold and run a temp script.
+//  4. Error  — instruct the user to add a generation script.
 func Nest(projectDir, outputDir string) error {
 	// 1. tsoa
 	if _, err := os.Stat(filepath.Join(projectDir, "tsoa.json")); err == nil {
@@ -36,42 +38,161 @@ func Nest(projectDir, outputDir string) error {
 		}
 	}
 
-	// 3. Scaffold a temporary NestJS bootstrap script.
-	scriptPath := filepath.Join(projectDir, ".drift-guard-swagger-gen.ts")
-	defer os.Remove(scriptPath) //nolint:errcheck
-
-	if err := os.WriteFile(scriptPath, []byte(nestJSScript(projectDir)), 0o600); err != nil {
-		return fmt.Errorf("scaffold NestJS swagger script: %w", err)
+	// 3. @nestjs/swagger present — scaffold a temporary generation script.
+	if nestHasSwaggerDep(projectDir) {
+		if err := nestSwagger(projectDir, outputPath); err == nil {
+			return nil
+		}
+		// Fall through to the actionable error on failure.
+		// (The subprocess already printed diagnostics to stderr.)
 	}
-	return runScript(projectDir, scriptPath, outputPath)
+
+	// 4. No auto-generation possible — guide the user.
+	// Booting the full NestJS app is not safe here because it would start
+	// database connections and other side effects. The user must provide a
+	// generation script that handles their app's dependencies.
+	return fmt.Errorf(
+		"no OpenAPI generator found in %s\n\n"+
+			"NestJS auto-generation requires a dedicated generation script.\n\n"+
+			"Option A — add scripts/generate-swagger.ts that writes the spec to\n"+
+			"  process.env.SWAGGER_OUTPUT without starting the full app, e.g. using\n"+
+			"  a mocked AppModule that omits database providers.\n\n"+
+			"Option B — use tsoa (no running app required):\n"+
+			"  npm install --save-dev tsoa && npx tsoa init\n\n"+
+			"Option C — use --cmd with a command that starts your app and generates the spec:\n"+
+			`  drift-guard compare openapi --cmd "npm run generate-swagger" --output swagger.json`,
+		projectDir,
+	)
 }
 
-func nestJSScript(projectDir string) string {
-	appModule := "./src/app.module"
-	for _, c := range []string{"src/app.module.ts", "src/app.module.js"} {
-		if _, err := os.Stat(filepath.Join(projectDir, c)); err == nil {
-			appModule = "./" + strings.TrimSuffix(filepath.ToSlash(c), filepath.Ext(c))
-			break
-		}
+// nestSwagger scaffolds a temporary TypeScript script that uses @nestjs/swagger
+// to generate the OpenAPI document, then runs it via ts-node. It calls
+// process.exit(0) after writing the spec to avoid hanging on open connections
+// (databases, message queues, etc.).
+func nestSwagger(projectDir, outputPath string) error {
+	appModulePath, err := detectAppModulePath(projectDir)
+	if err != nil {
+		return err
 	}
 
-	return fmt.Sprintf(`import { NestFactory } from '@nestjs/core';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { writeFileSync } from 'fs';
-import { AppModule } from '%s';
+	script := buildNestSwaggerScript(appModulePath)
 
-async function generate() {
-  const app = await NestFactory.create(AppModule, { logger: false });
+	// Write the temp script inside projectDir so Node resolves node_modules
+	// relative to the project, not the system temp directory.
+	tmp, err := os.CreateTemp(projectDir, ".dg-nestjs-swagger-*.ts")
+	if err != nil {
+		return fmt.Errorf("create temp script: %w", err)
+	}
+	defer os.Remove(tmp.Name())
+
+	if _, err := tmp.WriteString(script); err != nil {
+		tmp.Close()
+		return fmt.Errorf("write temp script: %w", err)
+	}
+	tmp.Close()
+
+	if err := runScript(projectDir, tmp.Name(), outputPath); err != nil {
+		// The subprocess has already written diagnostic output (NestJS logs,
+		// TypeORM errors, timeout message) directly to stderr. Return a short
+		// sentinel so the caller falls through to the actionable guidance,
+		// rather than repeating the tsconfig-paths hint which is unrelated here.
+		return fmt.Errorf("nestjs/swagger auto-generation failed")
+	}
+	return nil
+}
+
+// detectAppModulePath returns the path to the project's AppModule relative to
+// projectDir, trying common NestJS conventions.
+func detectAppModulePath(projectDir string) (string, error) {
+	candidates := []string{
+		"src/app.module.ts",
+		"src/app.module.js",
+		"app.module.ts",
+		"app.module.js",
+	}
+	for _, rel := range candidates {
+		if _, err := os.Stat(filepath.Join(projectDir, rel)); err == nil {
+			// Return an absolute POSIX path so the generated import works from any
+			// temp directory.
+			abs := filepath.Join(projectDir, strings.TrimSuffix(rel, filepath.Ext(rel)))
+			return filepath.ToSlash(abs), nil
+		}
+	}
+	return "", fmt.Errorf(
+		"could not find AppModule (tried src/app.module.ts and others); "+
+			"add scripts/generate-swagger.ts to your project instead",
+	)
+}
+
+// buildNestSwaggerScript returns a TypeScript snippet that boots the NestJS app,
+// generates the OpenAPI document, writes it to SWAGGER_OUTPUT, and exits.
+//
+// Key design choices:
+//   - abortOnError: false — makes NestJS throw instead of calling process.exit(1)
+//     on initialisation failure, so our catch handler can surface the real error.
+//   - 15-second timeout — kills the process if app initialisation hangs (e.g.
+//     TypeORM retrying a database connection).
+//   - dotenv is loaded opportunistically; if the package is absent the app's own
+//     ConfigModule will still handle environment loading.
+func buildNestSwaggerScript(appModuleAbsPath string) string {
+	return fmt.Sprintf(`// Load .env so ConfigModule / TypeORM can read credentials.
+try { require('dotenv').config({ quiet: true }); } catch (_) {}
+
+import { NestFactory } from '@nestjs/core';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import * as fs from 'fs';
+
+// If app initialisation hangs (e.g. TypeORM retrying a lost DB connection),
+// kill the process after 15 s with an actionable message.
+const deadline = setTimeout(() => {
+  process.stderr.write(
+    '\ndrift-guard: NestJS app did not finish initialising within 15 s.\n' +
+    'Ensure your database and other services are running, then retry.\n' +
+    'Alternatively, add scripts/generate-swagger.ts with a mocked AppModule.\n',
+  );
+  process.exit(1);
+}, 15_000);
+deadline.unref();
+
+async function generate(): Promise<void> {
+  const { AppModule } = await import('%s');
+  // abortOnError: false makes NestJS throw on failure instead of process.exit(1).
+  const app = await NestFactory.create(AppModule, { abortOnError: false });
+  clearTimeout(deadline);
   const config = new DocumentBuilder()
     .setTitle('API')
     .setVersion('1.0')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  const outputPath = process.env.SWAGGER_OUTPUT || 'swagger.json';
-  writeFileSync(outputPath, JSON.stringify(document, null, 2));
-  await app.close();
+  const output = process.env.SWAGGER_OUTPUT ?? 'swagger.json';
+  fs.writeFileSync(output, JSON.stringify(document, null, 2));
+  // Force exit so open handles (DB pools, queues) do not block the process.
+  process.exit(0);
 }
 
-generate().catch(err => { console.error(err); process.exit(1); });
-`, appModule)
+generate().catch((err) => {
+  clearTimeout(deadline);
+  process.stderr.write('Error: ' + String(err?.message ?? err) + '\n');
+  process.exit(1);
+});
+`, appModuleAbsPath)
+}
+
+// nestHasSwaggerDep reports whether @nestjs/swagger is listed as a dependency
+// in the project's package.json.
+func nestHasSwaggerDep(projectDir string) bool {
+	data, err := os.ReadFile(filepath.Join(projectDir, "package.json"))
+	if err != nil {
+		return false
+	}
+	var pkg struct {
+		Dependencies    map[string]json.RawMessage `json:"dependencies"`
+		DevDependencies map[string]json.RawMessage `json:"devDependencies"`
+	}
+	if err := json.Unmarshal(data, &pkg); err != nil {
+		return strings.Contains(string(data), `"@nestjs/swagger"`)
+	}
+	_, inDeps := pkg.Dependencies["@nestjs/swagger"]
+	_, inDev := pkg.DevDependencies["@nestjs/swagger"]
+	return inDeps || inDev
 }

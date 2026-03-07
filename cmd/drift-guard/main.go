@@ -22,6 +22,7 @@ var rootCmd = &cobra.Command{
 between two versions of an API schema.
 
 Supported schema types: openapi, graphql, grpc`,
+	SilenceUsage: true,
 }
 
 // shared flags

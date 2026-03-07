@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/pgomes13/drift-guard-engine/internal/generate"
 	"github.com/pgomes13/drift-guard-engine/internal/languages"
 )
 
@@ -107,7 +108,57 @@ func copyFile(src, dst string) error {
 	return nil
 }
 
+// --------------------------------------------------------------------------
+// generate swagger-script
+// --------------------------------------------------------------------------
+
+var flagSwaggerScriptForce bool
+
+var generateSwaggerScriptCmd = &cobra.Command{
+	Use:   "swagger-script",
+	Short: "Scaffold a scripts/generate-swagger.ts file in the current project",
+	Long: `Write a starter scripts/generate-swagger.ts to the current directory.
+
+The generated script uses NestFactory and SwaggerModule to produce an OpenAPI
+document and write it to the path given by SWAGGER_OUTPUT — exactly what
+drift-guard generate openapi expects.
+
+Inline comments in the file explain how to mock heavy providers (TypeORM,
+Redis, etc.) so the script can run without a live database.`,
+	Example: `  # Scaffold in the current directory
+  drift-guard generate swagger-script
+
+  # Overwrite an existing file
+  drift-guard generate swagger-script --force`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("get working directory: %w", err)
+		}
+
+		outPath := filepath.Join(cwd, "scripts", "generate-swagger.ts")
+		if !flagSwaggerScriptForce {
+			if _, err := os.Stat(outPath); err == nil {
+				return fmt.Errorf("%s already exists (use --force to overwrite)", outPath)
+			}
+		}
+
+		written, err := generate.ScaffoldNestSwaggerScript(cwd)
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(os.Stderr, "scaffold written to %s\n\n", written)
+		fmt.Fprintf(os.Stderr, "Next steps:\n")
+		fmt.Fprintf(os.Stderr, "  1. Review %s and adjust the AppModule import / provider mocks\n", written)
+		fmt.Fprintf(os.Stderr, "  2. Run: drift-guard generate openapi\n")
+		return nil
+	},
+}
+
 func init() {
 	generateOpenapiCmd.Flags().StringVar(&flagGenOutPath, "output", "swagger.json", "Path to write the generated schema file")
+	generateSwaggerScriptCmd.Flags().BoolVar(&flagSwaggerScriptForce, "force", false, "Overwrite the file if it already exists")
 	generateCmd.AddCommand(generateOpenapiCmd)
+	generateCmd.AddCommand(generateSwaggerScriptCmd)
 }
