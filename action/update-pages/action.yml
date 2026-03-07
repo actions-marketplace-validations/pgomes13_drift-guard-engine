@@ -1,10 +1,10 @@
 name: Update drift log on GitHub Pages
-description: Prepends a timestamped drift check entry to drift-log.md on the configured GitHub Pages branch.
+description: Creates and updates a GitHub Pages site with a log of API drift checks.
 
 runs:
   using: composite
   steps:
-    - name: Append to drift log
+    - name: Update drift log
       if: github.event_name == 'pull_request'
       shell: bash
       env:
@@ -20,37 +20,42 @@ runs:
           PAGES_BRANCH="gh-pages"
         fi
 
-        # Build the new log entry.
+        # Build the entry body.
         if [ -s /tmp/drift-output.txt ]; then
           CHANGES="$(cat /tmp/drift-output.txt)"
+          ESCAPED=$(printf '%s' "$CHANGES" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+          BODY=$(printf '<pre>%s</pre>' "$ESCAPED")
         else
-          CHANGES="_No API changes detected._"
+          BODY='<p class="no-drift">No API changes detected.</p>'
         fi
 
-        ENTRY=$(printf '## [PR #%s](%s) — %s\n\n%s\n\n---\n\n' \
-          "$PR_NUMBER" "$PR_URL" "$TIMESTAMP" "$CHANGES")
+        ENTRY=$(printf '<div class="entry"><div class="entry-header"><a href="%s">PR #%s</a><span class="entry-time">%s</span></div><div class="entry-body">%s</div></div>' \
+          "$PR_URL" "$PR_NUMBER" "$TIMESTAMP" "$BODY")
 
-        # Fetch the existing file. Use exit code — not content — to detect whether it exists.
-        if gh api "repos/${REPO}/contents/drift-log.md?ref=${PAGES_BRANCH}" > /tmp/drift-log-file.json 2>/dev/null; then
-          SHA=$(jq -r '.sha' /tmp/drift-log-file.json)
-          OLD_BODY=$(jq -r '.content' /tmp/drift-log-file.json | tr -d '\n' | base64 -d)
-          HEADER=$(printf '%s' "$OLD_BODY" | head -1)
-          REST=$(printf '%s' "$OLD_BODY" | tail -n +2)
-          NEW_BODY=$(printf '%s\n\n%s%s' "$HEADER" "$ENTRY" "$REST")
+        CSS='*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:960px;margin:48px auto;padding:0 24px;color:#24292e}h1{font-size:1.5rem;border-bottom:1px solid #e1e4e8;padding-bottom:12px;margin-bottom:24px}.entry{border:1px solid #e1e4e8;border-radius:6px;margin-bottom:20px;overflow:hidden}.entry-header{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#f6f8fa;border-bottom:1px solid #e1e4e8}.entry-header a{font-weight:600;color:#0366d6;text-decoration:none}.entry-time{color:#6a737d;font-size:.85rem}.entry-body{padding:16px}pre{margin:0;font-size:.82rem;white-space:pre-wrap;word-break:break-word}.no-drift{color:#6a737d;font-style:italic}'
+
+        # Fetch existing index.html or seed with template.
+        if gh api "repos/${REPO}/contents/index.html?ref=${PAGES_BRANCH}" > /tmp/pages-file.json 2>/dev/null; then
+          FILE_SHA=$(jq -r '.sha' /tmp/pages-file.json)
+          OLD_HTML=$(jq -r '.content' /tmp/pages-file.json | tr -d '\n' | base64 -d)
+          BEFORE=$(printf '%s' "$OLD_HTML" | sed -n '0,/<!-- ENTRIES -->/p')
+          AFTER=$(printf '%s' "$OLD_HTML" | sed -n '/<!-- ENTRIES -->/,${/<!-- ENTRIES -->/d;p}')
+          NEW_HTML=$(printf '%s\n%s\n%s' "$BEFORE" "$ENTRY" "$AFTER")
         else
-          SHA=""
-          NEW_BODY=$(printf '# Drift Guard Log\n\n%s' "$ENTRY")
+          FILE_SHA=""
+          PAGE_HEADER=$(printf '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1.0">\n<title>API Drift Log</title>\n<style>%s</style>\n</head>\n<body>\n<h1>API Drift Log</h1>\n<!-- ENTRIES -->' "$CSS")
+          NEW_HTML=$(printf '%s\n%s\n</body>\n</html>' "$PAGE_HEADER" "$ENTRY")
         fi
 
-        ENCODED=$(printf '%s' "$NEW_BODY" | base64 -w 0)
+        ENCODED=$(printf '%s' "$NEW_HTML" | base64 -w 0)
 
         PUT_ARGS=(
           --method PUT
-          "repos/${REPO}/contents/drift-log.md"
+          "repos/${REPO}/contents/index.html"
           -f "message=chore: update drift log [PR #${PR_NUMBER}]"
           -f "content=${ENCODED}"
           -f "branch=${PAGES_BRANCH}"
         )
-        [ -n "$SHA" ] && PUT_ARGS+=(-f "sha=${SHA}")
+        [ -n "$FILE_SHA" ] && PUT_ARGS+=(-f "sha=${FILE_SHA}")
 
         gh api "${PUT_ARGS[@]}" || true
