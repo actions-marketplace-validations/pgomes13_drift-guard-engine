@@ -4,11 +4,11 @@
 
 `drift-guard` can diff any two schema files of these types:
 
-| Format | Command | File types |
-|--------|---------|------------|
-| OpenAPI 3.x | `openapi` | `.yaml`, `.json` |
+| Format      | Command   | File types         |
+| ----------- | --------- | ------------------ |
+| OpenAPI 3.x | `openapi` | `.yaml`, `.json`   |
 | GraphQL SDL | `graphql` | `.graphql`, `.gql` |
-| Protobuf | `grpc` | `.proto` |
+| Protobuf    | `grpc`    | `.proto`           |
 
 ## Auto-detection (`compare`)
 
@@ -17,16 +17,14 @@
 ### Node.js
 
 | Framework | REST (OpenAPI) | GraphQL | gRPC |
-|-----------|---------------|---------|------|
-| Express | Yes | Yes | Yes |
-| NestJS | Yes | Yes | Yes |
-| Generic Node.js | Yes | Yes | Yes |
+| --------- | -------------- | ------- | ---- |
+| Express   | Yes            | Yes     | Yes  |
+| NestJS    | Yes            | Yes     | Yes  |
 
 ### Go
 
-| Framework | REST (OpenAPI) |
-|-----------|---------------|
-| Any (swag annotations) | Yes |
+| Framework              | REST (OpenAPI) |
+| ---------------------- | -------------- |
+| Any (swag annotations) | Yes            |
 
 > More languages and frameworks coming soon.
-
