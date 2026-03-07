@@ -20,17 +20,22 @@ runs:
           fi
         fi
 
+    - name: Delete previous Drift Guard comment
+      if: github.event_name == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+          --paginate --jq '.[] | select(.body | startswith("## Drift Guard Report")) | .id' \
+          | xargs -I{} gh api --method DELETE "repos/${{ github.repository }}/issues/comments/{}" || true
+
     - name: Comment on PR
       if: github.event_name == 'pull_request' && steps.drift.outputs.has_changes == 'true'
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        # Delete any existing Drift Guard comment on this PR.
-        gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
-          --paginate --jq '.[] | select(.body | startswith("## Drift Guard Report")) | .id' \
-          | xargs -I{} gh api --method DELETE "repos/${{ github.repository }}/issues/comments/{}" || true
-
         BODY="$(printf '## Drift Guard Report\n\n'; cat /tmp/drift-output.txt)"
         gh api \
           --method POST \
