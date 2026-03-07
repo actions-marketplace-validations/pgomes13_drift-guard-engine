@@ -71,9 +71,6 @@ func runCompare(cmd *cobra.Command, args []string) error {
 	if !(specFound || scriptFound) {
 		switch info.TypeName {
 		case "NestJS":
-			if !promptYesNo("Proceed to add script?") {
-				return nil
-			}
 			if _, err := nest.ScaffoldNestSwaggerScript(cwd); err != nil {
 				return err
 			}
@@ -115,7 +112,7 @@ func runCompare(cmd *cobra.Command, args []string) error {
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer os.RemoveAll(driftGuardDir)
 
 	// --- Step 4: generate head spec from current branch ---
 	headOut := filepath.Join(tmpDir, "head.json")
@@ -198,7 +195,7 @@ func runGraphQLCompare(cmd *cobra.Command, cwd string, info *languages.GraphQLPr
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer os.RemoveAll(driftGuardDir)
 
 	express.SubprocessOutput = io.Discard
 
@@ -269,7 +266,7 @@ func runGRPCCompare(cmd *cobra.Command, cwd string, info *languages.GRPCProjectI
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer os.RemoveAll(driftGuardDir)
 
 	headOut := filepath.Join(tmpDir, "head.proto")
 	if err := runStep("Collecting head gRPC schema", func() error {
