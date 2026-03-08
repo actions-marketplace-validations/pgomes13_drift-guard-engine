@@ -7,6 +7,37 @@ import (
 	"strings"
 )
 
+// goProjectTypeName returns the full display name for a Go project at dir,
+// e.g. "Go (Gin)", "Go (Echo)", or plain "Go" when no framework is detected.
+func goProjectTypeName(dir string) string {
+	if fw := goFrameworkName(dir); fw != "" {
+		return "Go (" + fw + ")"
+	}
+	return "Go"
+}
+
+// goFrameworkName returns the display name of the Go web framework used in
+// the project at dir, or an empty string if no recognised framework is found.
+func goFrameworkName(dir string) string {
+	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		return ""
+	}
+	content := string(data)
+	switch {
+	case strings.Contains(content, "github.com/gin-gonic/gin"):
+		return "Gin"
+	case strings.Contains(content, "github.com/labstack/echo"):
+		return "Echo"
+	case strings.Contains(content, "github.com/gofiber/fiber"):
+		return "Fiber"
+	case strings.Contains(content, "github.com/go-chi/chi"):
+		return "Chi"
+	default:
+		return ""
+	}
+}
+
 // isNestJSProject returns true when the project at dir has a package.json
 // that declares any core NestJS package as a dependency.
 func isNestJSProject(dir string) bool {

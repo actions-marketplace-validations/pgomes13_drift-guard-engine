@@ -21,7 +21,7 @@ type ProjectInfo struct {
 // for the detected project type.
 func DetectProjectInfo(dir string) (ProjectInfo, error) {
 	if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-		return ProjectInfo{"Go", GenerateGo}, nil
+		return ProjectInfo{goProjectTypeName(dir), GenerateGo}, nil
 	}
 	if isNestJSProject(dir) {
 		return ProjectInfo{"NestJS", GenerateNest}, nil
@@ -58,6 +58,12 @@ type GraphQLProjectInfo struct {
 // DetectGraphQLInfo returns GraphQL project info if the project uses GraphQL,
 // or nil if no GraphQL API is detected.
 func DetectGraphQLInfo(dir string) *GraphQLProjectInfo {
+	if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+		if hasGraphQLSchema(dir) {
+			return &GraphQLProjectInfo{goProjectTypeName(dir), GenerateGoGraphQL}
+		}
+		return nil
+	}
 	if isNestJSProject(dir) && (nestHasGraphQLDep(dir) || hasGraphQLSchema(dir)) {
 		return &GraphQLProjectInfo{"NestJS", GenerateNestGraphQL}
 	}
@@ -69,6 +75,9 @@ func DetectGraphQLInfo(dir string) *GraphQLProjectInfo {
 
 // DetectGraphQLGenerator returns the GraphQL generator for the project at dir.
 func DetectGraphQLGenerator(dir string) (GeneratorFunc, error) {
+	if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+		return GenerateGoGraphQL, nil
+	}
 	if isNestJSProject(dir) {
 		return GenerateNestGraphQL, nil
 	}
@@ -88,6 +97,12 @@ type GRPCProjectInfo struct {
 // DetectGRPCInfo returns gRPC project info if the project contains .proto files,
 // or nil if no gRPC API is detected.
 func DetectGRPCInfo(dir string) *GRPCProjectInfo {
+	if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+		if hasProtoFilesInDir(dir) {
+			return &GRPCProjectInfo{goProjectTypeName(dir), GenerateGoGRPC}
+		}
+		return nil
+	}
 	if isNestJSProject(dir) && hasProtoFilesInDir(dir) {
 		return &GRPCProjectInfo{"NestJS", GenerateNestGRPC}
 	}
@@ -99,6 +114,9 @@ func DetectGRPCInfo(dir string) *GRPCProjectInfo {
 
 // DetectGRPCGenerator returns the gRPC generator for the project at dir.
 func DetectGRPCGenerator(dir string) (GeneratorFunc, error) {
+	if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+		return GenerateGoGRPC, nil
+	}
 	if isNestJSProject(dir) {
 		return GenerateNestGRPC, nil
 	}
