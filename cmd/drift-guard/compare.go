@@ -56,13 +56,16 @@ func runCompare(cmd *cobra.Command, args []string) error {
 
 	// Scaffold generation script if needed.
 	if !(swaggerSpecExists(cwd) || swaggerScriptExists(cwd)) {
-		switch info.TypeName {
-		case "NestJS":
+		switch {
+		case strings.HasPrefix(info.TypeName, "Go"):
+			// swag init reads annotations from source — no scaffold needed.
+
+		case info.TypeName == "NestJS":
 			if _, err := nest.ScaffoldNestSwaggerScript(cwd); err != nil {
 				return err
 			}
 
-		case "Express", "Node.js":
+		default: // Express / Node.js
 			if !express.HasTsoaControllers(cwd) {
 				if !promptYesNo("Set up swagger-autogen for plain Express generation?") {
 					break

@@ -74,6 +74,32 @@ func TestDetectGenerator_Go(t *testing.T) {
 	}
 }
 
+func TestDetectGenerator_GoGin(t *testing.T) {
+	dir := makeTempDir(t)
+	writeFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.21\n\nrequire github.com/gin-gonic/gin v1.9.1\n")
+
+	gen, err := languages.DetectGenerator(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gen == nil {
+		t.Fatal("expected non-nil generator for Go (Gin) project")
+	}
+}
+
+func TestDetectGenerator_GoEcho(t *testing.T) {
+	dir := makeTempDir(t)
+	writeFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.21\n\nrequire github.com/labstack/echo/v4 v4.11.0\n")
+
+	gen, err := languages.DetectGenerator(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gen == nil {
+		t.Fatal("expected non-nil generator for Go (Echo) project")
+	}
+}
+
 func TestDetectGenerator_NestJS(t *testing.T) {
 	dir := makeTempDir(t)
 	writeFile(t, dir, "package.json", nestPackageJSON)
@@ -152,6 +178,74 @@ func TestDetectProjectInfo_Go(t *testing.T) {
 	}
 }
 
+func TestDetectProjectInfo_GoGin(t *testing.T) {
+	dir := makeTempDir(t)
+	writeFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.21\n\nrequire github.com/gin-gonic/gin v1.9.1\n")
+
+	info, err := languages.DetectProjectInfo(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if info.TypeName != "Go (Gin)" {
+		t.Errorf("expected TypeName='Go (Gin)', got '%s'", info.TypeName)
+	}
+	if info.Generate == nil {
+		t.Error("expected non-nil Generate func")
+	}
+}
+
+func TestDetectProjectInfo_GoEcho(t *testing.T) {
+	dir := makeTempDir(t)
+	writeFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.21\n\nrequire github.com/labstack/echo/v4 v4.11.0\n")
+
+	info, err := languages.DetectProjectInfo(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if info.TypeName != "Go (Echo)" {
+		t.Errorf("expected TypeName='Go (Echo)', got '%s'", info.TypeName)
+	}
+}
+
+func TestDetectProjectInfo_GoFiber(t *testing.T) {
+	dir := makeTempDir(t)
+	writeFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.21\n\nrequire github.com/gofiber/fiber/v2 v2.52.0\n")
+
+	info, err := languages.DetectProjectInfo(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if info.TypeName != "Go (Fiber)" {
+		t.Errorf("expected TypeName='Go (Fiber)', got '%s'", info.TypeName)
+	}
+}
+
+func TestDetectProjectInfo_GoChi(t *testing.T) {
+	dir := makeTempDir(t)
+	writeFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.21\n\nrequire github.com/go-chi/chi/v5 v5.1.0\n")
+
+	info, err := languages.DetectProjectInfo(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if info.TypeName != "Go (Chi)" {
+		t.Errorf("expected TypeName='Go (Chi)', got '%s'", info.TypeName)
+	}
+}
+
+func TestDetectProjectInfo_GoNoFramework(t *testing.T) {
+	dir := makeTempDir(t)
+	writeFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.21\n")
+
+	info, err := languages.DetectProjectInfo(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if info.TypeName != "Go" {
+		t.Errorf("expected TypeName='Go' for plain Go project, got '%s'", info.TypeName)
+	}
+}
+
 func TestDetectProjectInfo_NestJS(t *testing.T) {
 	dir := makeTempDir(t)
 	writeFile(t, dir, "package.json", nestPackageJSON)
@@ -211,13 +305,30 @@ func TestDetectGraphQLInfo_NestJSWithSchemaFile(t *testing.T) {
 	}
 }
 
-func TestDetectGraphQLInfo_NoGraphQL_ReturnsNil(t *testing.T) {
+func TestDetectGraphQLInfo_GoWithSchemaFile(t *testing.T) {
+	dir := makeTempDir(t)
+	writeFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.21\n\nrequire github.com/gin-gonic/gin v1.9.1\n")
+	writeFile(t, dir, "schema.graphql", "type Query { ping: String }")
+
+	info := languages.DetectGraphQLInfo(dir)
+	if info == nil {
+		t.Fatal("expected non-nil GraphQL info for Go project with schema.graphql")
+	}
+	if info.TypeName != "Go (Gin)" {
+		t.Errorf("expected TypeName='Go (Gin)', got '%s'", info.TypeName)
+	}
+	if info.GenerateGQL == nil {
+		t.Error("expected non-nil GenerateGQL func")
+	}
+}
+
+func TestDetectGraphQLInfo_GoNoSchemaFile_ReturnsNil(t *testing.T) {
 	dir := makeTempDir(t)
 	writeFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.21\n")
 
 	info := languages.DetectGraphQLInfo(dir)
 	if info != nil {
-		t.Errorf("expected nil GraphQL info for Go project, got %+v", info)
+		t.Errorf("expected nil GraphQL info for Go project without schema, got %+v", info)
 	}
 }
 
@@ -262,19 +373,52 @@ func TestDetectGRPCInfo_NoProto_ReturnsNil(t *testing.T) {
 	}
 }
 
-func TestDetectGRPCInfo_GoProject_ReturnsNil(t *testing.T) {
+func TestDetectGRPCInfo_GoWithProto(t *testing.T) {
+	dir := makeTempDir(t)
+	writeFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.21\n\nrequire github.com/gin-gonic/gin v1.9.1\n")
+	if err := os.MkdirAll(filepath.Join(dir, "proto"), 0755); err != nil {
+		t.Fatalf("mkdir proto: %v", err)
+	}
+	writeFile(t, dir, "proto/service.proto", `syntax = "proto3"; service UserService {}`)
+
+	info := languages.DetectGRPCInfo(dir)
+	if info == nil {
+		t.Fatal("expected non-nil gRPC info for Go project with .proto files")
+	}
+	if info.TypeName != "Go (Gin)" {
+		t.Errorf("expected TypeName='Go (Gin)', got '%s'", info.TypeName)
+	}
+	if info.GenerateRPC == nil {
+		t.Error("expected non-nil GenerateRPC func")
+	}
+}
+
+func TestDetectGRPCInfo_GoNoProto_ReturnsNil(t *testing.T) {
 	dir := makeTempDir(t)
 	writeFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.21\n")
 
 	info := languages.DetectGRPCInfo(dir)
 	if info != nil {
-		t.Errorf("expected nil gRPC info for Go project (not supported), got %+v", info)
+		t.Errorf("expected nil gRPC info for Go project without .proto files, got %+v", info)
 	}
 }
 
 // --------------------------------------------------------------------------
 // DetectGraphQLGenerator
 // --------------------------------------------------------------------------
+
+func TestDetectGraphQLGenerator_Go(t *testing.T) {
+	dir := makeTempDir(t)
+	writeFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.21\n")
+
+	gen, err := languages.DetectGraphQLGenerator(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gen == nil {
+		t.Fatal("expected non-nil GraphQL generator for Go project")
+	}
+}
 
 func TestDetectGraphQLGenerator_NestJS(t *testing.T) {
 	dir := makeTempDir(t)
@@ -301,6 +445,19 @@ func TestDetectGraphQLGenerator_Unknown_ReturnsError(t *testing.T) {
 // --------------------------------------------------------------------------
 // DetectGRPCGenerator
 // --------------------------------------------------------------------------
+
+func TestDetectGRPCGenerator_Go(t *testing.T) {
+	dir := makeTempDir(t)
+	writeFile(t, dir, "go.mod", "module example.com/app\n\ngo 1.21\n")
+
+	gen, err := languages.DetectGRPCGenerator(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gen == nil {
+		t.Fatal("expected non-nil gRPC generator for Go project")
+	}
+}
 
 func TestDetectGRPCGenerator_NestJS(t *testing.T) {
 	dir := makeTempDir(t)
