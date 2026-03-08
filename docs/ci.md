@@ -10,7 +10,13 @@ Add API drift detection to any pull request in one line:
 - uses: pgomes13/drift-guard-engine@v1
 ```
 
-When API drift is detected, the action automatically posts a PR comment with the full diff report. It auto-detects your framework and runs comparisons for all API types found — REST (OpenAPI), GraphQL, and gRPC. Supported Node.js frameworks: **Express**, **NestJS**. More language and framework support coming soon.
+The action automatically:
+
+- Detects your framework and runs comparisons for all API types found — REST (OpenAPI), GraphQL, and gRPC
+- Posts a PR comment with the full diff report when drift is detected
+- Updates a drift log on your GitHub Pages site, with one entry per PR showing timestamps in your local time
+
+Supported Node.js frameworks: **Express**, **NestJS**. More language and framework support coming soon.
 
 Full workflow example:
 

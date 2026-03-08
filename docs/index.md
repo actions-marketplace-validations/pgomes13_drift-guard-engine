@@ -19,5 +19,5 @@ features:
   - title: Severity classification
     details: Every change is classified as breaking, non-breaking, or info — with detailed rules per schema type.
   - title: CI-ready
-    details: GitHub Actions annotations, --fail-on-breaking exit code, and a native gRPC server for programmatic use.
+    details: Posts PR comments with the full diff, updates a drift log on GitHub Pages, and supports --fail-on-breaking to block merges.
 ---
