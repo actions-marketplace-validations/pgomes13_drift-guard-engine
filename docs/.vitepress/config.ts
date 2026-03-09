@@ -20,6 +20,7 @@ export default defineConfig({
           { text: 'Usage', link: '/usage' },
           { text: 'Playground ↗', link: 'https://drift-guard-theta.vercel.app/', target: '_blank' },
           { text: 'Supported', link: '/supported' },
+          { text: 'Generating Specs', link: '/generating-specs' },
         ],
       },
       {

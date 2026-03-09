@@ -54,6 +54,14 @@ describe("PlaygroundPage", () => {
     expect(screen.getByRole("button", { name: "Compare" })).toBeInTheDocument();
   });
 
+  it("renders the Generate spec link pointing to docs", () => {
+    render(<PlaygroundPage />);
+    const link = screen.getByRole("link", { name: /generate spec/i });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "https://pgomes13.github.io/drift-guard-engine/generating-specs");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
   it("calls fetch with correct payload on Compare click", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,

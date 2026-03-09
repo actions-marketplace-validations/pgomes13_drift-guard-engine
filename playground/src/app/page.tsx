@@ -71,6 +71,15 @@ export default function PlaygroundPage() {
             </span>
           </div>
 
+          <a
+            href="https://pgomes13.github.io/drift-guard-engine/generating-specs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-200 hover:border-indigo-400 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Generate specs ↗
+          </a>
+
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
             {SCHEMA_TYPES.map((t) => (
               <button
