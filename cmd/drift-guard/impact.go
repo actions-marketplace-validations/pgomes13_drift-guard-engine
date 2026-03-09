@@ -39,7 +39,7 @@ var (
 func init() {
 	impactCmd.Flags().StringVar(&flagImpactDiff, "diff", "-", "Path to JSON diff file (use - or omit to read from stdin)")
 	impactCmd.Flags().StringVar(&flagImpactScan, "scan", ".", "Directory to scan for source references")
-	impactCmd.Flags().StringVar(&flagImpactFormat, "format", "text", "Output format: text, json, markdown")
+	impactCmd.Flags().StringVar(&flagImpactFormat, "format", "text", "Output format: text, json, markdown, github")
 }
 
 func runImpact(cmd *cobra.Command, args []string) error {

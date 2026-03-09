@@ -32,3 +32,11 @@ export interface CompareRequest {
   base_content: string;
   head_content: string;
 }
+
+export interface Hit {
+  file: string;
+  line_num: number;
+  line: string;
+  change_type: string;
+  change_path: string;
+}

@@ -59,7 +59,7 @@ drift-guard impact --diff diff.json --scan ./src
 | ------------ | ------------------------------------------------------ | ------- |
 | `--diff`     | Path to a JSON diff file; omit or use `-` to read stdin | stdin  |
 | `--scan`     | Directory to scan for source references                | `.`     |
-| `-f, --format` | Output format: `text`, `json`, `markdown`            | `text`  |
+| `-f, --format` | Output format: `text`, `json`, `markdown`, `github` | `text`  |
 
 ### Examples
 
@@ -68,21 +68,39 @@ drift-guard impact --diff diff.json --scan ./src
 drift-guard openapi --base old.yaml --head new.yaml --format json \
   | drift-guard impact --scan ./services
 
-# Markdown report
+# GitHub Actions inline annotations — hits appear on PR diff lines
+drift-guard impact --diff diff.json --scan ./src --format github
+
+# Markdown report — collapsible sections per breaking change
 drift-guard impact --diff diff.json --scan ./src --format markdown
 
 # JSON output (machine-readable)
 drift-guard impact --diff diff.json --scan ./src --format json
 ```
 
-### Sample output
+### Output formats
+
+| Format | Best for |
+|--------|----------|
+| `text` | Local terminal |
+| `github` | CI — inline annotations on PR diff lines |
+| `markdown` | PR comment — collapsible sections, summary count |
+| `json` | Scripting / custom tooling |
+
+### Sample output (text)
 
 ```
 Breaking change: DELETE /users/{id} (endpoint_removed)
   services/user-service/client.go:42     client.Delete("/users/" + id)
   apps/mobile-api/routes.go:17           r.DELETE("/users/:id", handler)
-
-Breaking change: POST /users > body > email (field_type_changed)
-  services/auth/register.go:88           body["email"] = input.Email
 ```
+
+### Sample output (github)
+
+```
+::error file=services/client.go,line=42,title=Breaking API change%3A DELETE /users/{id}::client.Delete("/users/" + id)
+::error file=apps/routes.go,line=17,title=Breaking API change%3A DELETE /users/{id}::r.DELETE("/users/:id", handler)
+```
+
+Each line renders as a red inline annotation on the exact file and line in the GitHub PR diff view.
 

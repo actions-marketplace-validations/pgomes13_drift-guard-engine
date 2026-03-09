@@ -13,6 +13,8 @@ import (
 	"sync"
 
 	"github.com/pgomes13/drift-guard-engine/pkg/compare"
+	"github.com/pgomes13/drift-guard-engine/pkg/impact"
+	"github.com/pgomes13/drift-guard-engine/pkg/schema"
 )
 
 //go:embed static
@@ -60,6 +62,12 @@ type compareRequest struct {
 	HeadContent string `json:"head_content"`
 }
 
+type impactRequest struct {
+	Diff     schema.DiffResult `json:"diff"`
+	Code     string            `json:"code"`
+	Filename string            `json:"filename"` // e.g. "service.go", "client.ts"
+}
+
 type errorResponse struct {
 	Error string `json:"error"`
 }
@@ -77,6 +85,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/compare", corsMiddleware(compareHandler))
+	mux.HandleFunc("/api/impact", corsMiddleware(impactHandler))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -163,6 +172,88 @@ func compareHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Cache", "MISS")
 	w.Write(encoded)
+}
+
+func impactHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, 2<<20) // 2 MB
+
+	var req impactRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request: "+err.Error())
+		return
+	}
+	if req.Code == "" {
+		writeError(w, http.StatusBadRequest, "code is required")
+		return
+	}
+
+	// Use provided filename or fall back to a generic Go file so the scanner
+	// recognises the extension.
+	filename := req.Filename
+	if filename == "" {
+		filename = "service.go"
+	}
+
+	// Write the code snippet to a temp directory so impact.Scan can walk it.
+	dir, err := os.MkdirTemp("", "drift-guard-impact-*")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create temp dir: "+err.Error())
+		return
+	}
+	defer os.RemoveAll(dir)
+
+	codePath := filepath.Join(dir, filepath.Base(filename))
+	if err := os.WriteFile(codePath, []byte(req.Code), 0o600); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to write code: "+err.Error())
+		return
+	}
+
+	// Collect breaking changes and scan.
+	var allHits []impact.Hit
+	for _, c := range req.Diff.Changes {
+		if c.Severity != schema.SeverityBreaking {
+			continue
+		}
+		terms := impact.ExtractTerms(c)
+		if len(terms) == 0 {
+			continue
+		}
+		changePath := changeLabel(c)
+		hits, err := impact.Scan(dir, terms, changePath, string(c.Type))
+		if err != nil {
+			continue
+		}
+		// Strip the temp dir prefix so filenames look clean in the UI.
+		for i := range hits {
+			hits[i].File = filepath.Base(hits[i].File)
+		}
+		allHits = append(allHits, hits...)
+	}
+
+	if allHits == nil {
+		allHits = []impact.Hit{} // return [] not null
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(allHits)
+}
+
+func changeLabel(c schema.Change) string {
+	if c.Method != "" && c.Path != "" {
+		return fmt.Sprintf("%s %s (%s)", c.Method, c.Path, c.Type)
+	}
+	if c.Path != "" {
+		return fmt.Sprintf("%s (%s)", c.Path, c.Type)
+	}
+	if c.Location != "" {
+		return fmt.Sprintf("%s (%s)", c.Location, c.Type)
+	}
+	return string(c.Type)
 }
 
 func runCompare(schemaType, basePath, headPath string) (any, error) {
