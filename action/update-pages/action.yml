@@ -9,12 +9,12 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        PR_URL: ${{ github.event.pull_request.html_url }}
       run: |
         [ -s /tmp/drift-output.txt ] || exit 0
 
         REPO="${{ github.repository }}"
-        PR_NUMBER="${{ github.event.pull_request.number }}"
-        PR_URL="${{ github.event.pull_request.html_url }}"
         TIMESTAMP=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 
         # Detect configured Pages branch; fall back to gh-pages.
@@ -22,43 +22,65 @@ runs:
           PAGES_BRANCH="gh-pages"
         fi
 
-        # Write markdown-to-HTML table converter (base64-encoded to avoid YAML parsing issues).
+        # Build HTML body from markdown output (base64-encoded converter).
         printf '%s' 'aW1wb3J0IHN5cwpsaW5lcyA9IHN5cy5zdGRpbi5yZWFkKCkuc3BsaXQoIlxuIikKb3V0ID0gW10KaW5fdCA9IEZhbHNlCmZvciBsaW5lIGluIGxpbmVzOgogICAgaWYgbGluZS5zdGFydHN3aXRoKCIqKlRvdGFsOiIpOgogICAgICAgIG91dC5hcHBlbmQoJzxwIGNsYXNzPSJzdW1tYXJ5Ij4nICsgbGluZS5yZXBsYWNlKCIqKiIsIiIpICsgIjwvcD4iKQogICAgZWxpZiBub3QgKGxpbmUuc3RhcnRzd2l0aCgifC0tIikgb3IgbGluZS5zdGFydHN3aXRoKCJ8IC0tIikpOgogICAgICAgIGlmIGxpbmUuc3RhcnRzd2l0aCgifCIpOgogICAgICAgICAgICBjZWxscyA9IFtjLnN0cmlwKCkgZm9yIGMgaW4gbGluZS5zdHJpcCgpLnN0cmlwKCJ8Iikuc3BsaXQoInwiKV0KICAgICAgICAgICAgaWYgbm90IGluX3Q6CiAgICAgICAgICAgICAgICBvdXQgKz0gWyI8dGFibGU+PHRoZWFkPjx0cj4iXSArIFsiPHRoPiIrYysiPC90aD4iIGZvciBjIGluIGNlbGxzXSArIFsiPC90cj48L3RoZWFkPjx0Ym9keT4iXQogICAgICAgICAgICAgICAgaW5fdCA9IFRydWUKICAgICAgICAgICAgZWxzZToKICAgICAgICAgICAgICAgIGNscyA9ICcgY2xhc3M9ImJyZWFraW5nIicgaWYgY2VsbHMgYW5kICJCUkVBS0lORyIgaW4gY2VsbHNbMF0gYW5kICJub24iIG5vdCBpbiBjZWxsc1swXSBlbHNlICgnIGNsYXNzPSJub25icmVha2luZyInIGlmIGNlbGxzIGFuZCAibm9uLWJyZWFraW5nIiBpbiBjZWxsc1swXSBlbHNlICIiKQogICAgICAgICAgICAgICAgb3V0ICs9IFsiPHRyIitjbHMrIj4iXSArIFsiPHRkPiIrYysiPC90ZD4iIGZvciBjIGluIGNlbGxzXSArIFsiPC90cj4iXQppZiBpbl90OgogICAgb3V0LmFwcGVuZCgiPC90Ym9keT48L3RhYmxlPiIpCnByaW50KCIiLmpvaW4ob3V0KSkK' | base64 -d > /tmp/md2html.py
+        BODY=$(cat /tmp/drift-output.txt | python3 /tmp/md2html.py)
+        printf '%s' "$BODY" > /tmp/entry-body.html
 
-        # Build the entry body.
-        if [ -s /tmp/drift-output.txt ]; then
-          BODY=$(cat /tmp/drift-output.txt | python3 /tmp/md2html.py)
+        # Parse summary numbers from markdown output.
+        python3 "${GITHUB_ACTION_PATH}/parse_summary.py"
+        TOTAL=$(sed -n '1p' /tmp/summary.txt)
+        BREAKING=$(sed -n '2p' /tmp/summary.txt)
+        NON_BREAKING=$(sed -n '3p' /tmp/summary.txt)
+        INFO=$(sed -n '4p' /tmp/summary.txt)
+
+        # Write new entry metadata as JSON.
+        jq -n \
+          --argjson pr      "$PR_NUMBER"   \
+          --arg     url     "$PR_URL"      \
+          --arg     ts      "$TIMESTAMP"   \
+          --argjson total   "$TOTAL"       \
+          --argjson breaking     "$BREAKING"    \
+          --argjson non_breaking "$NON_BREAKING" \
+          --argjson info    "$INFO"        \
+          '{pr:$pr,url:$url,timestamp:$ts,total:$total,breaking:$breaking,non_breaking:$non_breaking,info:$info}' \
+          > /tmp/new-entry.json
+
+        # Fetch existing drift-log.json.
+        if gh api "repos/${REPO}/contents/drift-log.json?ref=${PAGES_BRANCH}" > /tmp/log-file.json 2>/dev/null; then
+          LOG_SHA=$(jq -r '.sha' /tmp/log-file.json)
+          jq -r '.content' /tmp/log-file.json | tr -d '\n' | base64 -d > /tmp/drift-log-existing.json
         else
-          BODY='<p class="no-drift">No API changes detected.</p>'
+          LOG_SHA=""
+          echo '[]' > /tmp/drift-log-existing.json
         fi
 
-        ENTRY=$(printf '<div class="entry"><div class="entry-header"><a href="%s">PR #%s</a><span class="entry-time" data-utc="%s"></span></div><div class="entry-body">%s</div></div>' \
-          "$PR_URL" "$PR_NUMBER" "$TIMESTAMP" "$BODY")
+        # Merge entry into drift-log.json and regenerate index.html.
+        python3 "${GITHUB_ACTION_PATH}/update_log.py"
 
-        CSS='*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:960px;margin:48px auto;padding:0 24px;color:#24292e}h1{font-size:1.5rem;border-bottom:1px solid #e1e4e8;padding-bottom:12px;margin-bottom:24px}.entry{border:1px solid #e1e4e8;border-radius:6px;margin-bottom:20px;overflow:hidden}.entry-header{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#f6f8fa;border-bottom:1px solid #e1e4e8}.entry-header a{font-weight:600;color:#0366d6;text-decoration:none}.entry-time{color:#6a737d;font-size:.85rem}.entry-body{padding:16px}table{width:100%;border-collapse:collapse;font-size:.875rem;border:1px solid #d0d7de}th{text-align:left;padding:10px 14px;background:#f6f8fa;border:1px solid #d0d7de;font-weight:600}td{padding:10px 14px;border:1px solid #d0d7de;vertical-align:top}.breaking td:first-child{color:#cb2431;font-weight:600}.nonbreaking td:first-child{color:#22863a}.summary{margin:0 0 12px;color:#586069;font-size:.875rem}.no-drift{color:#6a737d;font-style:italic}'
+        # Commit drift-log.json.
+        ENCODED_LOG=$(base64 -w 0 /tmp/drift-log-new.json)
+        LOG_ARGS=(
+          --method PUT "repos/${REPO}/contents/drift-log.json"
+          -f "message=chore: update drift log"
+          -f "content=${ENCODED_LOG}"
+          -f "branch=${PAGES_BRANCH}"
+        )
+        [ -n "$LOG_SHA" ] && LOG_ARGS+=(-f "sha=${LOG_SHA}")
+        gh api "${LOG_ARGS[@]}" > /dev/null || true
 
-        PAGE_HEADER=$(printf '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1.0">\n<title>API Drift Log</title>\n<style>%s</style>\n</head>\n<body>\n<h1>API Drift Log</h1>\n<script>document.addEventListener("DOMContentLoaded",function(){document.querySelectorAll(".entry-time[data-utc]").forEach(function(el){var d=new Date(el.dataset.utc),h=d.getHours(),m=d.getMinutes(),ap=h>=12?"pm":"am";h=h%%12||12;el.textContent=d.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long",year:"numeric"})+" "+h+":"+(m<10?"0"+m:m)+ap;});});</script>\n<!-- ENTRIES -->' "$CSS")
-
-        # Fetch existing index.html or seed with template; always prepend latest entry.
+        # Commit index.html.
         if gh api "repos/${REPO}/contents/index.html?ref=${PAGES_BRANCH}" > /tmp/pages-file.json 2>/dev/null; then
           FILE_SHA=$(jq -r '.sha' /tmp/pages-file.json)
-          OLD_HTML=$(jq -r '.content' /tmp/pages-file.json | tr -d '\n' | base64 -d)
-          OLD_ENTRIES=$(printf '%s' "$OLD_HTML" | sed -n '/<!-- ENTRIES -->/,${/<!-- ENTRIES -->/d;p}' | grep -v ">PR #${PR_NUMBER}<")
-          NEW_HTML=$(printf '%s\n%s\n%s\n</body>\n</html>' "$PAGE_HEADER" "$ENTRY" "$OLD_ENTRIES")
         else
           FILE_SHA=""
-          NEW_HTML=$(printf '%s\n%s\n</body>\n</html>' "$PAGE_HEADER" "$ENTRY")
         fi
-
-        ENCODED=$(printf '%s' "$NEW_HTML" | base64 -w 0)
-
+        ENCODED=$(base64 -w 0 /tmp/new-index.html)
         PUT_ARGS=(
-          --method PUT
-          "repos/${REPO}/contents/index.html"
+          --method PUT "repos/${REPO}/contents/index.html"
           -f "message=chore: update drift log"
           -f "content=${ENCODED}"
           -f "branch=${PAGES_BRANCH}"
         )
         [ -n "$FILE_SHA" ] && PUT_ARGS+=(-f "sha=${FILE_SHA}")
-
-        gh api "${PUT_ARGS[@]}" || true
+        gh api "${PUT_ARGS[@]}" > /dev/null || true
