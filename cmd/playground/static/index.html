@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>drift-guard playground</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-accent">drift-guard</span> playground
+    <span class="logo-badge">beta</span>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Schema type">
+    <button class="tab active" role="tab" data-type="openapi">OpenAPI</button>
+    <button class="tab"        role="tab" data-type="graphql">GraphQL</button>
+    <button class="tab"        role="tab" data-type="grpc">gRPC / Protobuf</button>
+  </nav>
+</header>
+
+<main>
+  <div class="editors-row">
+    <div class="editor-panel">
+      <div class="editor-label">
+        Base Schema
+        <span class="editor-sublabel">— current / stable version</span>
+      </div>
+      <div id="base-cm" class="cm-host"></div>
+      <textarea id="base-ta" class="editor-fallback" style="display:none"
+                spellcheck="false" aria-label="Base schema"></textarea>
+    </div>
+
+    <div class="editor-panel">
+      <div class="editor-label">
+        Head Schema
+        <span class="editor-sublabel">— new / proposed version</span>
+      </div>
+      <div id="head-cm" class="cm-host"></div>
+      <textarea id="head-ta" class="editor-fallback" style="display:none"
+                spellcheck="false" aria-label="Head schema"></textarea>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <button id="compare-btn" type="button">Compare</button>
+  </div>
+
+  <div id="error-banner" hidden role="alert"></div>
+  <div id="results"       hidden aria-live="polite"></div>
+</main>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

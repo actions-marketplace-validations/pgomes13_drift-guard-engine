@@ -1,17 +1,48 @@
 BIN              := drift-guard
 MCP_BIN          := drift-guard-mcp
+API_BIN          := drift-guard-api
 CMD              := ./cmd/drift-guard
 MCP_CMD          := ./cmd/mcp-server
+API_CMD          := ./cmd/playground
 HOMEBREW_TAP     := pgomes13/homebrew-tap
 FORMULA          := drift-guard
 
-.PHONY: build build-mcp test vet lint clean run-openapi run-graphql run-grpc release major minor patch homebrew commit
+.PHONY: build build-mcp build-api test vet lint clean run-openapi run-graphql run-grpc run-api local playground release major minor patch homebrew commit
 
 build:
 	go build -o $(BIN) $(CMD)
 
 build-mcp:
 	go build -o $(MCP_BIN) $(MCP_CMD)
+
+build-api:
+	go build -o $(API_BIN) $(API_CMD)
+
+run-api: build-api
+	./$(API_BIN)
+
+## local: build Go API + run Next.js playground side-by-side.
+## Go API → http://localhost:9000   Next.js → http://localhost:3000
+##
+## Usage:
+##   make local
+##
+local: build-api
+	@echo "Starting Go API on :9000 and Next.js on :3000 (Ctrl+C to stop both)"
+	@trap 'kill 0' SIGINT SIGTERM; \
+	./$(API_BIN) & \
+	cd playground && npm run dev; \
+	wait
+
+## playground: run Go API with embedded static playground (no Node.js required).
+## Playground → http://localhost:9000
+##
+## Usage:
+##   make playground
+##
+playground: build-api
+	@echo "Starting standalone playground on http://localhost:9000"
+	./$(API_BIN)
 
 test:
 	go test ./...
@@ -23,7 +54,7 @@ lint: vet
 	staticcheck ./...
 
 clean:
-	rm -f $(BIN) $(MCP_BIN)
+	rm -f $(BIN) $(MCP_BIN) $(API_BIN)
 
 ## Quick smoke runs against the bundled fixtures
 run-openapi: build
