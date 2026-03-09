@@ -1,5 +1,13 @@
 # Installation
 
+## npm (Node.js)
+
+```sh
+npm install @pgomes13/drift-guard
+```
+
+Downloads the correct pre-built binary for your platform automatically. See [npm SDK](/npm) for the full programmatic API.
+
 ## Homebrew (macOS / Linux)
 
 ```sh

@@ -7,8 +7,12 @@ Detect and classify breaking vs. non-breaking API contract changes across **Open
 ## Quick install
 
 ```sh
+# Homebrew
 brew tap pgomes13/tap
 brew install drift-guard
+
+# npm
+npm install @pgomes13/drift-guard
 ```
 
 ## Quick start
@@ -19,4 +23,13 @@ drift-guard compare
 
 # GitHub Action — one line
 - uses: pgomes13/drift-guard-engine@v1
+```
+
+## npm / Node.js API
+
+```ts
+import { compareOpenAPI, impact } from "@pgomes13/drift-guard";
+
+const result = compareOpenAPI("old.yaml", "new.yaml");
+const hits = impact(result, "./src");
 ```

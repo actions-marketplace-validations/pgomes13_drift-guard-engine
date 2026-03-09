@@ -15,7 +15,8 @@
     "index.d.ts",
     "run.js",
     "install.js",
-    "bin/"
+    "bin/",
+    "README.md"
   ],
   "keywords": [
     "api",

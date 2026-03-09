@@ -10,6 +10,9 @@ hero:
       text: Get Started
       link: /install
     - theme: alt
+      text: npm SDK
+      link: /npm
+    - theme: alt
       text: GitHub Marketplace
       link: https://github.com/marketplace/actions/drift-guard
     - theme: alt
@@ -23,4 +26,6 @@ features:
     details: Every change is classified as breaking, non-breaking, or info — with detailed rules per schema type.
   - title: CI-ready
     details: Posts PR comments with the full diff, updates a drift log on GitHub Pages, and supports --fail-on-breaking to block merges.
+  - title: SDK & npm package
+    details: Use drift-guard programmatically from Node.js/TypeScript via @pgomes13/drift-guard, or import pkg/compare and pkg/impact directly in Go.
 ---
