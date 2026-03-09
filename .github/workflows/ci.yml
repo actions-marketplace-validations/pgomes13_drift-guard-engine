@@ -32,3 +32,24 @@ jobs:
 
       - name: Vet
         run: make vet
+
+  test-playground:
+    name: Playground Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: playground/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: playground
+
+      - name: Test
+        run: npm test
+        working-directory: playground
