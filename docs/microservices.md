@@ -85,7 +85,19 @@ jobs:
           fail-on-hits: "false"
 ```
 
-If breaking changes affect the consumer, the action posts a comment to any open PRs and (optionally) fails the job.
+### How the consumer notifies the team
+
+The action handles three situations automatically:
+
+| Consumer state | What happens |
+|----------------|--------------|
+| Has open PR(s) | Impact report posted as a PR comment on every open PR |
+| No open PRs | A GitHub Issue is opened (or updated) with the full impact report and a `drift-guard` label |
+| No hits found | Nothing posted — job exits cleanly |
+
+This means the team is always notified, whether or not they have work in progress.
+
+> **Note:** `issues: write` is required for both PR comments (GitHub's PR comment API uses the Issues endpoint) and for opening issues.
 
 ## Artifact-only mode (no dispatch)
 
@@ -109,7 +121,7 @@ If you prefer polling over push, consumers can download the diff artifact direct
 | `provider-repo` | Provider repo to download artifact from | — |
 | `diff-json` | Inline JSON diff (from `repository_dispatch` payload) | — |
 | `scan-dir` | Directory to scan for source references | `.` |
-| `format` | Output format: `text`, `json`, `markdown` | `markdown` |
+| `format` | Output format: `text`, `json`, `markdown`, `github` | `github` |
 | `fail-on-hits` | Exit 1 if any references found | `false` |
 | `token` | Token with `actions:read` on provider repo | `GITHUB_TOKEN` |
 

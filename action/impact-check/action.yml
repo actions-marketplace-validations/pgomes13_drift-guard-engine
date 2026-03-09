@@ -19,13 +19,20 @@ inputs:
     required: false
     default: "."
   format:
-    description: Output format — text, json, or markdown.
+    description: Output format — text, json, markdown, or github (inline PR annotations).
     required: false
-    default: "markdown"
+    default: "github"
   fail-on-hits:
     description: Exit with code 1 if any references to breaking changes are found.
     required: false
     default: "false"
+  create-issue:
+    description: >
+      Open a GitHub Issue in this repo when hits are found and no open PRs exist.
+      Ensures the team is always notified even when no PR is in progress.
+      Only applies to repository_dispatch triggers.
+    required: false
+    default: "true"
   token:
     description: GitHub token with actions:read on the provider repo (required when provider-repo is set).
     required: false
@@ -63,25 +70,129 @@ runs:
       run: |
         set +e
         drift-guard impact --diff /tmp/drift-diff.json --scan '${{ inputs.scan-dir }}' --format '${{ inputs.format }}' > /tmp/impact-output.txt 2>&1
-        IMPACT_EXIT=$?
-        if [ -s /tmp/impact-output.txt ]; then
+        if [ -s /tmp/impact-output.txt ] && ! grep -q "^No references found" /tmp/impact-output.txt; then
           echo "has_hits=true" >> $GITHUB_OUTPUT
         else
           echo "has_hits=false" >> $GITHUB_OUTPUT
         fi
-        cat /tmp/impact-output.txt
+        # Always emit github annotations — effective when running in a pull_request context
+        drift-guard impact --diff /tmp/drift-diff.json --scan '${{ inputs.scan-dir }}' --format github 2>/dev/null || true
 
-    - name: Comment on PR
+    - name: Find open PR numbers (repository_dispatch trigger)
+      id: find-prs
+      if: github.event_name != 'pull_request' && steps.impact.outputs.has_hits == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        PR_NUMBERS=$(gh api "repos/${{ github.repository }}/pulls?state=open&per_page=100" \
+          --jq '[.[].number] | join(" ")')
+        echo "pr_numbers=$PR_NUMBERS" >> $GITHUB_OUTPUT
+
+    - name: Generate markdown report
+      if: steps.impact.outputs.has_hits == 'true'
+      shell: bash
+      run: |
+        drift-guard impact --diff /tmp/drift-diff.json --scan '${{ inputs.scan-dir }}' --format markdown > /tmp/impact-markdown.txt 2>/dev/null
+
+    # ── pull_request trigger ──────────────────────────────────────────────────
+
+    - name: Delete previous impact comment (pull_request trigger)
+      if: github.event_name == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+          --paginate --jq '.[] | select(.body | startswith("<!-- drift-guard-impact -->")) | .id' \
+          | xargs -I{} gh api --method DELETE "repos/${{ github.repository }}/issues/comments/{}" || true
+
+    - name: Comment on PR (pull_request trigger)
       if: github.event_name == 'pull_request' && steps.impact.outputs.has_hits == 'true'
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        BODY="$(printf '## Drift Guard — Impact Report\n\nBreaking changes from upstream API affect this service:\n\n'; cat /tmp/impact-output.txt)"
+        BODY="$(printf '<!-- drift-guard-impact -->\n## Drift Guard — Impact Report\n\nUpstream breaking API changes affect this service. Update the references below before the provider merges.\n\n'; cat /tmp/impact-markdown.txt)"
         gh api \
           --method POST \
           "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
           -f body="$BODY"
+
+    # ── repository_dispatch trigger — open PRs exist ─────────────────────────
+
+    - name: Delete previous impact comments on open PRs (repository_dispatch trigger)
+      if: github.event_name != 'pull_request' && steps.find-prs.outputs.pr_numbers != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR_NUMBERS: ${{ steps.find-prs.outputs.pr_numbers }}
+      run: |
+        for PR in $PR_NUMBERS; do
+          gh api "repos/${{ github.repository }}/issues/$PR/comments" \
+            --paginate --jq '.[] | select(.body | startswith("<!-- drift-guard-impact -->")) | .id' \
+            | xargs -I{} gh api --method DELETE "repos/${{ github.repository }}/issues/comments/{}" || true
+        done
+
+    - name: Comment on open PRs (repository_dispatch trigger)
+      if: github.event_name != 'pull_request' && steps.impact.outputs.has_hits == 'true' && steps.find-prs.outputs.pr_numbers != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR_NUMBERS: ${{ steps.find-prs.outputs.pr_numbers }}
+        PROVIDER_REPO: ${{ github.event.client_payload.provider_repo }}
+      run: |
+        BODY="$(printf '<!-- drift-guard-impact -->\n## Drift Guard — Impact Report\n\nUpstream breaking API changes in `'"$PROVIDER_REPO"'` affect this service. Update the references below before the provider merges.\n\n'; cat /tmp/impact-markdown.txt)"
+        for PR in $PR_NUMBERS; do
+          gh api \
+            --method POST \
+            "repos/${{ github.repository }}/issues/$PR/comments" \
+            -f body="$BODY"
+        done
+
+    # ── repository_dispatch trigger — no open PRs → open/update an issue ─────
+
+    - name: Find existing drift-guard issue (repository_dispatch trigger, no PRs)
+      id: find-issue
+      if: github.event_name != 'pull_request' && steps.impact.outputs.has_hits == 'true' && steps.find-prs.outputs.pr_numbers == '' && inputs.create-issue == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        ISSUE_NUMBER=$(gh api "repos/${{ github.repository }}/issues?state=open&labels=drift-guard&per_page=10" \
+          --jq '[.[] | select(.title | startswith("Drift Guard — Breaking API changes"))] | first | .number // ""')
+        echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+
+    - name: Update existing drift-guard issue (repository_dispatch trigger, no PRs)
+      if: github.event_name != 'pull_request' && steps.impact.outputs.has_hits == 'true' && steps.find-prs.outputs.pr_numbers == '' && inputs.create-issue == 'true' && steps.find-issue.outputs.issue_number != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PROVIDER_REPO: ${{ github.event.client_payload.provider_repo }}
+        ISSUE_NUMBER: ${{ steps.find-issue.outputs.issue_number }}
+      run: |
+        BODY="$(printf '<!-- drift-guard-impact -->\n## Drift Guard — Impact Report\n\nUpstream breaking API changes in `'"$PROVIDER_REPO"'` affect this service. No open PRs found — review and update the references below.\n\n'; cat /tmp/impact-markdown.txt)"
+        gh api \
+          --method PATCH \
+          "repos/${{ github.repository }}/issues/$ISSUE_NUMBER" \
+          -f body="$BODY"
+        echo "::notice::Updated existing drift-guard issue #$ISSUE_NUMBER"
+
+    - name: Open new drift-guard issue (repository_dispatch trigger, no PRs)
+      if: github.event_name != 'pull_request' && steps.impact.outputs.has_hits == 'true' && steps.find-prs.outputs.pr_numbers == '' && inputs.create-issue == 'true' && steps.find-issue.outputs.issue_number == ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PROVIDER_REPO: ${{ github.event.client_payload.provider_repo }}
+      run: |
+        BODY="$(printf '<!-- drift-guard-impact -->\n## Drift Guard — Impact Report\n\nUpstream breaking API changes in `'"$PROVIDER_REPO"'` affect this service. No open PRs found — review and update the references below before the provider merges.\n\n'; cat /tmp/impact-markdown.txt)"
+        gh api \
+          --method POST \
+          "repos/${{ github.repository }}/issues" \
+          -f title="Drift Guard — Breaking API changes from $PROVIDER_REPO require updates" \
+          -f body="$BODY" \
+          -f "labels[]=drift-guard"
+        echo "::warning::No open PRs found — opened a new issue to track impact"
 
     - name: Fail if hits found
       if: inputs.fail-on-hits == 'true' && steps.impact.outputs.has_hits == 'true'
