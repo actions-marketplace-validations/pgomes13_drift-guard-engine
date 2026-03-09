@@ -18,6 +18,7 @@ export default defineConfig({
           { text: 'Installation', link: '/install' },
           { text: 'CLI', link: '/cli' },
           { text: 'Usage', link: '/usage' },
+          { text: 'Playground', link: '/playground' },
           { text: 'Supported', link: '/supported' },
         ],
       },
@@ -26,12 +27,6 @@ export default defineConfig({
         items: [
           { text: 'Output Formats', link: '/output-formats' },
           { text: 'Severity Rules', link: '/severity-rules' },
-        ],
-      },
-      {
-        text: 'Playground',
-        items: [
-          { text: 'Try it online', link: '/playground' },
         ],
       },
       {

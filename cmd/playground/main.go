@@ -1,19 +1,58 @@
 package main
 
 import (
+	"crypto/sha256"
 	"embed"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/pgomes13/drift-guard-engine/internal/compare"
 )
 
 //go:embed static
 var staticFiles embed.FS
+
+// diffCache caches serialised diff results keyed by SHA-256 of the request
+// inputs. It clears itself when it reaches maxSize to bound memory usage.
+type diffCache struct {
+	mu      sync.RWMutex
+	entries map[string][]byte
+	maxSize int
+}
+
+func newDiffCache(maxSize int) *diffCache {
+	return &diffCache{entries: make(map[string][]byte, maxSize), maxSize: maxSize}
+}
+
+func (c *diffCache) get(key string) ([]byte, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	v, ok := c.entries[key]
+	return v, ok
+}
+
+func (c *diffCache) set(key string, val []byte) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.entries) >= c.maxSize {
+		c.entries = make(map[string][]byte, c.maxSize)
+	}
+	c.entries[key] = val
+}
+
+func cacheKey(schemaType, base, head string) string {
+	h := sha256.New()
+	fmt.Fprintf(h, "%s\x00%s\x00%s", schemaType, base, head)
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+var cache = newDiffCache(256)
 
 type compareRequest struct {
 	SchemaType  string `json:"schema_type"`  // "openapi" | "graphql" | "grpc"
@@ -84,6 +123,14 @@ func compareHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	key := cacheKey(req.SchemaType, req.BaseContent, req.HeadContent)
+	if cached, ok := cache.get(key); ok {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Cache", "HIT")
+		w.Write(cached)
+		return
+	}
+
 	ext := extForType(req.SchemaType)
 
 	basePath, err := writeTempFile([]byte(req.BaseContent), "base"+ext)
@@ -106,8 +153,16 @@ func compareHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to encode result: "+err.Error())
+		return
+	}
+	cache.set(key, encoded)
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	w.Header().Set("X-Cache", "MISS")
+	w.Write(encoded)
 }
 
 func runCompare(schemaType, basePath, headPath string) (any, error) {
