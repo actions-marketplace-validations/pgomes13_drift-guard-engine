@@ -1,6 +1,6 @@
 # drift-guard
 
-Detect and classify breaking vs. non-breaking API contract changes across **OpenAPI**, **GraphQL**, and **gRPC** schemas.
+API type safety across **OpenAPI**, **GraphQL**, and **gRPC** — catch breaking changes before they reach production.
 
 **[Full documentation →](https://pgomes13.github.io/drift-guard-engine)**
 

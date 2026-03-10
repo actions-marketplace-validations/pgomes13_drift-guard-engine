@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: DriftGuard
-  text: API Contract Change Detection
-  tagline: Detect and classify breaking vs. non-breaking schema changes across OpenAPI, GraphQL, and gRPC.
+  text: API Type Safety
+  tagline: Enforce API type safety across OpenAPI, GraphQL, and gRPC — catch breaking changes before they reach production.
   actions:
     - theme: brand
       text: Get Started

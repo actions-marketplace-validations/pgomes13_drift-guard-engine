@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'DriftGuard',
-  description: 'Detect and classify breaking vs. non-breaking API contract changes across OpenAPI, GraphQL, and gRPC.',
+  description: 'API type safety across OpenAPI, GraphQL, and gRPC. Catch breaking changes before they reach production.',
   base: '/drift-guard-engine/',
 
   themeConfig: {
