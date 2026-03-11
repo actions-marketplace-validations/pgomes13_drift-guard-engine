@@ -93,23 +93,6 @@ See drift-guard in action on a real pull request: [pgomes13/nest-coffee#8](https
 | Output          | Description                                                             |
 | --------------- | ----------------------------------------------------------------------- |
 | `drift-status`  | `no_drift`, `drift_detected`, `auto_accepted`, or `error`               |
-| `check-run-id`  | GitHub Check Run ID created by the service (connected mode only)        |
-| `report-url`    | URL to the drift report in the portal (connected mode only)             |
-
-## Standalone mode (default)
-
-By default the action runs entirely within your repository using the drift-guard CLI binary. It generates schemas from your source code, diffs them, posts a Markdown PR comment, and optionally updates a drift log on GitHub Pages — no external service or account required.
-
-## Connected mode (paid tier)
-
-Install the **[Drift Guard GitHub App](https://github.com/apps/drift-guard)** on your repository to unlock connected mode. Once installed, the action detects the app automatically and delegates analysis to the Drift Guard service — no extra configuration needed.
-
-Connected mode provides:
-- **GitHub Check Runs** — block merges until a reviewer approves or rejects the drift
-- **Drift portal** — full review UI with diff visualization, approve/reject controls, and history
-- **Baseline management** — tracked per PR, persisted across force-pushes
-
-No `service-url` or token configuration is required. The action uses the GitHub App installation to authenticate with the service automatically. If the service is unreachable it falls back to standalone mode.
 
 ## Key flags
 
