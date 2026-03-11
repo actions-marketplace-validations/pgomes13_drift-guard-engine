@@ -14,12 +14,97 @@ inputs:
     description: GitHub token with repo write access to the consumer repos (required when notify-consumers is set).
     required: false
     default: ""
+  service-url:
+    description: |
+      Drift Guard service URL (paid tier). When provided, delegates analysis to the service which
+      manages GitHub Check Runs, baseline storage, and portal-based approve/reject review.
+    required: false
+    default: ""
+  project-token:
+    description: Token used to authenticate with the Drift Guard service.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  drift-status:
+    description: "Result of drift analysis: no_drift, drift_detected, auto_accepted, or error"
+    value: ${{ steps.connected.outputs.drift_status || steps.drift.outputs.drift_status }}
+  check-run-id:
+    description: "GitHub Check Run ID created by the service (connected mode only)"
+    value: ${{ steps.connected.outputs.check_run_id }}
+  report-url:
+    description: "URL to the drift report in the portal (connected mode only)"
+    value: ${{ steps.connected.outputs.report_url }}
 
 runs:
   using: composite
   steps:
-    - name: Run API drift comparison
+
+    # ── CONNECTED MODE (paid) ─────────────────────────────────────────────────
+    # When service-url is provided, delegate everything to the drift-guard service.
+    # The service creates a Check Run, runs the diff, stores the baseline, and
+    # links to the portal for approve/reject review.
+
+    - name: Delegate analysis to Drift Guard service
+      id: connected
+      if: inputs.service-url != '' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        SERVICE_URL: ${{ inputs.service-url }}
+        PROJECT_TOKEN: ${{ inputs.project-token }}
+        OWNER: ${{ github.repository_owner }}
+        REPO: ${{ github.event.repository.name }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        INSTALLATION_ID: ${{ github.event.installation.id }}
+      run: |
+        if [ -z "$INSTALLATION_ID" ]; then
+          echo "::warning::github.event.installation.id is not available. Falling back to standalone mode."
+          echo "drift_status=error" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+          -H "Authorization: Bearer $PROJECT_TOKEN" \
+          -H "Content-Type: application/json" \
+          -H "Accept: application/json" \
+          "$SERVICE_URL/drift/$OWNER/$REPO/pulls/$PR_NUMBER/analyze" \
+          -d "{\"installationId\":$INSTALLATION_ID,\"headSha\":\"$HEAD_SHA\",\"baseSha\":\"$BASE_SHA\"}")
+
+        HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+        BODY=$(echo "$RESPONSE" | head -n -1)
+
+        if [ "$HTTP_CODE" -ne 202 ]; then
+          echo "::warning::Drift Guard service returned HTTP $HTTP_CODE. Falling back to standalone mode."
+          echo "drift_status=error" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        STATUS=$(echo "$BODY" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+        CHECK_RUN_ID=$(echo "$BODY" | grep -o '"checkRunId":[0-9]*' | cut -d':' -f2)
+        REPORT_URL=$(echo "$BODY" | grep -o '"reportUrl":"[^"]*"' | cut -d'"' -f4)
+
+        echo "drift_status=$STATUS" >> $GITHUB_OUTPUT
+        echo "check_run_id=$CHECK_RUN_ID" >> $GITHUB_OUTPUT
+        echo "report_url=$REPORT_URL" >> $GITHUB_OUTPUT
+
+        echo "Drift Guard service response: status=$STATUS checkRunId=$CHECK_RUN_ID"
+        echo "Review URL: $REPORT_URL"
+
+        # Exit 1 if drift requires human review (mirrors Chromatic CLI exit code 1)
+        if [ "$STATUS" = "drift_detected" ]; then
+          echo "::warning::API drift detected and requires review. Visit $REPORT_URL to approve or reject."
+          exit 1
+        fi
+
+    # ── STANDALONE MODE (free / fallback) ────────────────────────────────────
+    # Runs the drift-guard binary locally and posts a PR comment + Check Run
+    # directly using GITHUB_TOKEN. No service required.
+
+    - name: Run API drift comparison (standalone)
       id: drift
+      if: inputs.service-url == '' || steps.connected.outputs.drift_status == 'error'
       shell: bash
       run: |
         set +e
@@ -27,15 +112,26 @@ runs:
         DRIFT_EXIT=$?
         if [ $DRIFT_EXIT -eq 0 ] && [ -s /tmp/drift-output.txt ]; then
           echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "drift_status=drift_detected" >> $GITHUB_OUTPUT
         else
           echo "has_changes=false" >> $GITHUB_OUTPUT
+          echo "drift_status=no_drift" >> $GITHUB_OUTPUT
           if [ $DRIFT_EXIT -ne 0 ]; then
             echo "::warning::drift-guard failed to generate the API spec. See logs for details."
           fi
         fi
 
+    - name: Post GitHub Check Run (standalone)
+      if: (inputs.service-url == '' || steps.connected.outputs.drift_status == 'error') && github.event_name == 'pull_request'
+      uses: pgomes13/drift-guard-engine/action/check-run@v1
+      with:
+        head-sha: ${{ github.event.pull_request.head.sha }}
+        conclusion: ${{ steps.drift.outputs.has_changes == 'true' && 'failure' || 'success' }}
+        title: ${{ steps.drift.outputs.has_changes == 'true' && 'API drift detected' || 'No API drift detected' }}
+        summary-file: /tmp/drift-output.txt
+
     - name: Generate JSON diff
-      if: inputs.upload-diff == 'true' || inputs.notify-consumers != ''
+      if: (inputs.service-url == '' || steps.connected.outputs.drift_status == 'error') && (inputs.upload-diff == 'true' || inputs.notify-consumers != '')
       shell: bash
       run: |
         set +e
@@ -58,7 +154,7 @@ runs:
         PROVIDER_REPO: ${{ github.repository }}
         PROVIDER_RUN_ID: ${{ github.run_id }}
       run: |
-        DIFF_JSON=$(cat /tmp/drift-diff.json)
+        DIFF_JSON=$(cat /tmp/drift-diff.json 2>/dev/null || echo '{}')
         IFS=',' read -ra REPOS <<< "$CONSUMERS"
         for repo in "${REPOS[@]}"; do
           repo=$(echo "$repo" | xargs)
@@ -71,7 +167,7 @@ runs:
         done
 
     - name: Delete previous Drift Guard comment
-      if: github.event_name == 'pull_request'
+      if: (inputs.service-url == '' || steps.connected.outputs.drift_status == 'error') && github.event_name == 'pull_request'
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
@@ -80,8 +176,8 @@ runs:
           --paginate --jq '.[] | select(.body | startswith("## Drift Guard Report")) | .id' \
           | xargs -I{} gh api --method DELETE "repos/${{ github.repository }}/issues/comments/{}" || true
 
-    - name: Comment on PR
-      if: github.event_name == 'pull_request' && steps.drift.outputs.has_changes == 'true'
+    - name: Comment on PR (standalone)
+      if: (inputs.service-url == '' || steps.connected.outputs.drift_status == 'error') && github.event_name == 'pull_request' && steps.drift.outputs.has_changes == 'true'
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}

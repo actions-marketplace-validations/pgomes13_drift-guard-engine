@@ -19,6 +19,19 @@ inputs:
     description: GitHub token with repo write access to consumer repos. Required when notify-consumers is set.
     required: false
     default: ""
+  service-url:
+    description: |
+      Drift Guard service URL (paid tier). When provided, analysis is delegated to the service,
+      which manages GitHub Check Runs, baseline storage, and portal-based review.
+      Example: https://api.driftguard.com.au
+    required: false
+    default: ""
+  project-token:
+    description: |
+      GitHub token used to authenticate with the Drift Guard service.
+      Defaults to the built-in GITHUB_TOKEN which has repo read access.
+    required: false
+    default: ${{ github.token }}
 
 runs:
   using: composite
@@ -36,6 +49,8 @@ runs:
         upload-diff: ${{ inputs.upload-diff }}
         notify-consumers: ${{ inputs.notify-consumers }}
         notify-token: ${{ inputs.notify-token }}
+        service-url: ${{ inputs.service-url }}
+        project-token: ${{ inputs.project-token }}
 
     - uses: pgomes13/drift-guard-engine/action/update-pages@v1
 

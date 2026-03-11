@@ -1,0 +1,61 @@
+name: Post Drift Guard Check Run
+description: Creates or updates a GitHub Check Run for drift analysis results (standalone/free mode).
+
+inputs:
+  head-sha:
+    description: The commit SHA to attach the Check Run to.
+    required: true
+  conclusion:
+    description: "Check Run conclusion: success or failure."
+    required: true
+  title:
+    description: Short title for the Check Run output.
+    required: true
+  summary-file:
+    description: Path to a file containing the Markdown summary for the Check Run output body.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Create Check Run
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        HEAD_SHA: ${{ inputs.head-sha }}
+        CONCLUSION: ${{ inputs.conclusion }}
+        TITLE: ${{ inputs.title }}
+        SUMMARY_FILE: ${{ inputs.summary-file }}
+      run: |
+        # Read summary from file if provided, otherwise use a default message
+        if [ -n "$SUMMARY_FILE" ] && [ -f "$SUMMARY_FILE" ]; then
+          SUMMARY=$(cat "$SUMMARY_FILE")
+        else
+          SUMMARY="No detailed output available."
+        fi
+
+        # Escape for JSON
+        TITLE_JSON=$(printf '%s' "$TITLE" | jq -Rs .)
+        SUMMARY_JSON=$(printf '%s' "$SUMMARY" | jq -Rs .)
+
+        PAYLOAD=$(printf '{"name":"Drift Guard","head_sha":"%s","status":"completed","conclusion":"%s","completed_at":"%s","output":{"title":%s,"summary":%s}}' \
+          "$HEAD_SHA" \
+          "$CONCLUSION" \
+          "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          "$TITLE_JSON" \
+          "$SUMMARY_JSON")
+
+        HTTP_CODE=$(gh api \
+          --method POST \
+          -H "Accept: application/vnd.github+json" \
+          "repos/${{ github.repository }}/check-runs" \
+          --input - <<< "$PAYLOAD" \
+          -w "%{http_code}" \
+          --silent 2>/dev/null || echo "000")
+
+        if [ "$HTTP_CODE" -eq 201 ] || [ "$HTTP_CODE" -eq 200 ]; then
+          echo "Check Run posted: conclusion=$CONCLUSION"
+        else
+          echo "::warning::Could not post Check Run (HTTP $HTTP_CODE). The GITHUB_TOKEN may need checks:write permission."
+        fi
