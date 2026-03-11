@@ -20,10 +20,7 @@ inputs:
     required: false
     default: ""
   service-url:
-    description: |
-      Drift Guard service URL (paid tier). When provided, analysis is delegated to the service,
-      which manages GitHub Check Runs, baseline storage, and portal-based review.
-      Example: https://api.driftguard.com.au
+    description: Override the Drift Guard service URL (advanced use only).
     required: false
     default: ""
   project-token:
