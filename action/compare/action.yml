@@ -19,13 +19,17 @@ inputs:
     required: false
     default: ""
   project-token:
-    description: Token used to authenticate with the Drift Guard service.
+    description: |
+      DRIFT_GUARD_PROJECT_TOKEN obtained from the Drift Guard portal.
+      When set, enables connected mode: the service creates a blocking GitHub
+      Check Run and links to the portal for review. Without this token the
+      action runs in standalone (free) mode — local diff, PR comment only.
     required: false
-    default: ${{ github.token }}
+    default: ""
 
 outputs:
   drift-status:
-    description: "Result of drift analysis: no_drift, drift_detected, auto_accepted, or error"
+    description: "Result of drift analysis: no_drift, drift_detected, auto_accepted, or pending"
     value: ${{ steps.connected.outputs.drift_status || steps.drift.outputs.drift_status }}
   check-run-id:
     description: "GitHub Check Run ID created by the service (connected mode only)"
@@ -39,9 +43,9 @@ runs:
   steps:
 
     # ── CONNECTED MODE (paid) ─────────────────────────────────────────────────
-    # Always attempted on pull_request events. The service auto-detects whether
-    # the Drift Guard GitHub App is installed on the repo (via App JWT lookup).
-    # Returns 404 if not installed → falls back to standalone mode.
+    # Only runs when project-token starts with "dg_" (a DRIFT_GUARD_PROJECT_TOKEN).
+    # Without a project token the step exits cleanly with no outputs, and the
+    # standalone steps below take over.
 
     - name: Delegate analysis to Drift Guard service
       id: connected
@@ -56,20 +60,50 @@ runs:
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
       run: |
-        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-          -H "Authorization: Bearer $PROJECT_TOKEN" \
-          -H "Content-Type: application/json" \
-          -H "Accept: application/json" \
-          "$SERVICE_URL/drift/$OWNER/$REPO/pulls/$PR_NUMBER/analyze" \
-          -d "{\"headSha\":\"$HEAD_SHA\",\"baseSha\":\"$BASE_SHA\"}")
+        # No project token — run in standalone (free) mode
+        if [[ "$PROJECT_TOKEN" != dg_* ]]; then
+          echo "No DRIFT_GUARD_PROJECT_TOKEN set — running in standalone (free) mode."
+          exit 0
+        fi
 
+        call_service() {
+          curl -s -w "\n%{http_code}" --max-time 30 -X POST \
+            -H "Authorization: Bearer $PROJECT_TOKEN" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            "$SERVICE_URL/drift/$OWNER/$REPO/pulls/$PR_NUMBER/analyze" \
+            -d "{\"headSha\":\"$HEAD_SHA\",\"baseSha\":\"$BASE_SHA\"}"
+        }
+
+        RESPONSE=$(call_service)
         HTTP_CODE=$(echo "$RESPONSE" | tail -1)
         BODY=$(echo "$RESPONSE" | head -n -1)
 
+        # Retry once on transient server error (5xx) or timeout
+        if [ -z "$HTTP_CODE" ] || [ "${HTTP_CODE:-0}" -ge 500 ]; then
+          echo "::warning::Drift Guard service unavailable (HTTP ${HTTP_CODE:-timeout}), retrying in 5s…"
+          sleep 5
+          RESPONSE=$(call_service)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+        fi
+
+        # Hard fail on auth errors — misconfigured token
+        if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
+          echo "::error::Invalid DRIFT_GUARD_PROJECT_TOKEN (HTTP $HTTP_CODE). Verify the secret is set correctly at Settings → Secrets → Actions."
+          exit 1
+        fi
+
+        # Hard fail if service is still unavailable after retry
+        if [ -z "$HTTP_CODE" ] || [ "${HTTP_CODE:-0}" -ge 500 ]; then
+          echo "::error::Drift Guard service is unavailable (HTTP ${HTTP_CODE:-timeout}). Try re-running the workflow."
+          exit 1
+        fi
+
+        # Any other non-202 (e.g. 404 = App not installed on this repo)
         if [ "$HTTP_CODE" -ne 202 ]; then
-          echo "::debug::Drift Guard service returned HTTP $HTTP_CODE. Falling back to standalone mode."
-          echo "drift_status=error" >> $GITHUB_OUTPUT
-          exit 0
+          echo "::error::Drift Guard service returned unexpected HTTP $HTTP_CODE. Verify your project token and that the Drift Guard App is installed on this repo."
+          exit 1
         fi
 
         STATUS=$(echo "$BODY" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
@@ -81,7 +115,9 @@ runs:
         echo "report_url=$REPORT_URL" >> $GITHUB_OUTPUT
 
         echo "Drift Guard service response: status=$STATUS checkRunId=$CHECK_RUN_ID"
-        echo "Review URL: $REPORT_URL"
+        if [ -n "$REPORT_URL" ]; then
+          echo "Review URL: $REPORT_URL"
+        fi
 
         # Exit 1 if drift requires human review (mirrors Chromatic CLI exit code 1)
         if [ "$STATUS" = "pending" ]; then
@@ -89,13 +125,13 @@ runs:
           exit 1
         fi
 
-    # ── STANDALONE MODE (free / fallback) ────────────────────────────────────
-    # Runs the drift-guard binary locally and posts a PR comment + Check Run
-    # directly using GITHUB_TOKEN. No service required.
+    # ── STANDALONE MODE (free tier) ───────────────────────────────────────────
+    # Runs locally when no DRIFT_GUARD_PROJECT_TOKEN is provided, or for non-PR
+    # events. No service required — diff runs in-process using the binary.
 
     - name: Run API drift comparison (standalone)
       id: drift
-      if: steps.connected.outputs.drift_status == 'error' || github.event_name != 'pull_request'
+      if: steps.connected.outputs.drift_status == '' || github.event_name != 'pull_request'
       shell: bash
       run: |
         set +e
@@ -113,7 +149,7 @@ runs:
         fi
 
     - name: Post GitHub Check Run (standalone)
-      if: steps.connected.outputs.drift_status == 'error' && github.event_name == 'pull_request'
+      if: steps.connected.outputs.drift_status == '' && github.event_name == 'pull_request'
       uses: pgomes13/drift-guard-engine/action/check-run@v1
       with:
         head-sha: ${{ github.event.pull_request.head.sha }}
@@ -122,7 +158,7 @@ runs:
         summary-file: /tmp/drift-output.txt
 
     - name: Generate JSON diff
-      if: steps.connected.outputs.drift_status == 'error' && (inputs.upload-diff == 'true' || inputs.notify-consumers != '')
+      if: steps.connected.outputs.drift_status == '' && (inputs.upload-diff == 'true' || inputs.notify-consumers != '')
       shell: bash
       run: |
         set +e
@@ -158,7 +194,7 @@ runs:
         done
 
     - name: Delete previous Drift Guard comment
-      if: steps.connected.outputs.drift_status == 'error' && github.event_name == 'pull_request'
+      if: steps.connected.outputs.drift_status == '' && github.event_name == 'pull_request'
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
@@ -168,7 +204,7 @@ runs:
           | xargs -I{} gh api --method DELETE "repos/${{ github.repository }}/issues/comments/{}" || true
 
     - name: Comment on PR (standalone)
-      if: steps.connected.outputs.drift_status == 'error' && github.event_name == 'pull_request' && steps.drift.outputs.has_changes == 'true'
+      if: steps.connected.outputs.drift_status == '' && github.event_name == 'pull_request' && steps.drift.outputs.has_changes == 'true'
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
@@ -176,7 +212,7 @@ runs:
         OWNER=$(printf '%s' "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
         REPO_NAME=$(printf '%s' "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
         PAGES_URL="https://${OWNER}.github.io/${REPO_NAME}/"
-        BODY="$(printf '## Drift Guard Report\n\n'; cat /tmp/drift-output.txt; printf '\n\n---\n[View full drift log](%s)' "$PAGES_URL")"
+        BODY="$(printf '## Drift Guard Report\n\n'; cat /tmp/drift-output.txt; printf '\n\n---\n[View full drift log](%s)\n\n> Want Check Run gating and a full review UI? [Register at Drift Guard](https://driftguard.com.au) to get your project token.' "$PAGES_URL")"
         gh api \
           --method POST \
           "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \

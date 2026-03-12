@@ -25,10 +25,12 @@ inputs:
     default: ""
   project-token:
     description: |
-      GitHub token used to authenticate with the Drift Guard service.
-      Defaults to the built-in GITHUB_TOKEN which has repo read access.
+      DRIFT_GUARD_PROJECT_TOKEN obtained from the Drift Guard portal.
+      When set, enables connected mode: the service creates a blocking GitHub
+      Check Run and links to the portal for review. Without this token the
+      action runs in standalone (free) mode — local diff, PR comment only.
     required: false
-    default: ${{ github.token }}
+    default: ""
 
 runs:
   using: composite
