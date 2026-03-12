@@ -1,6 +1,6 @@
 # npm SDK
 
-`@pgomes13/drift-guard` is a thin npm wrapper around the drift-guard binary. On install, the correct pre-built binary for your platform is downloaded automatically — no Go toolchain required.
+<a href="https://www.npmjs.com/package/@pgomes13/drift-guard" target="_blank">@pgomes13/drift-guard</a> is a thin npm wrapper around the drift-guard binary. On install, the correct pre-built binary for your platform is downloaded automatically — no Go toolchain required.
 
 ## Installation
 

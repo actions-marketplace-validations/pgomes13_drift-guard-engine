@@ -33,11 +33,11 @@ export default defineConfig({
       {
         text: 'Integrations',
         items: [
-          { text: 'GitHub Actions', link: '/ci' },
-          { text: 'Microservices', link: '/microservices' },
           { text: 'npm', link: '/npm' },
           { text: 'Go', link: '/sdk' },
           { text: 'gRPC', link: '/grpc-server' },
+          { text: 'GitHub Actions', link: '/ci' },
+          { text: 'Microservices', link: '/microservices' },
           { text: 'MCP (AI)', link: '/mcp' },
         ],
       },
