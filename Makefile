@@ -1,11 +1,11 @@
-BIN              := drift-guard
-MCP_BIN          := drift-guard-mcp
-API_BIN          := drift-guard-api
-CMD              := ./cmd/drift-guard
+BIN              := driftabot
+MCP_BIN          := driftabot-mcp
+API_BIN          := driftabot-api
+CMD              := ./cmd/driftabot
 MCP_CMD          := ./cmd/mcp-server
 API_CMD          := ./cmd/playground
-HOMEBREW_TAP     := pgomes13/homebrew-tap
-FORMULA          := drift-guard
+HOMEBREW_TAP     := DriftaBot/homebrew-tap
+FORMULA          := driftabot
 
 include make/build.mk
 include make/test.mk
