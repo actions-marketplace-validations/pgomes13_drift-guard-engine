@@ -7,7 +7,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/DriftaBot/driftabot-engine/pkg/schema"
+	"github.com/DriftaBot/engine/pkg/schema"
 )
 
 // Format controls the output format of the report.

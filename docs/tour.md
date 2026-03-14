@@ -6,7 +6,7 @@ This page walks you through the full DriftaBot setup — from zero to your first
 
 ## How it works
 
-**driftabot-engine** is the core diff engine. It detects breaking API changes between two schema versions.
+**@driftabot/engine** is the core diff engine. It detects breaking API changes between two schema versions.
 
 **API DriftaBot** sits on top of the engine. When a provider PR introduces breaking changes, the agent automatically finds every consumer repo in your org that references those endpoints and opens a GitHub Issue in each one.
 
@@ -14,7 +14,7 @@ This page walks you through the full DriftaBot setup — from zero to your first
 Provider repo PR opened
        │
        ▼
-driftabot-engine  ←  auto-detects & diffs API schema
+@driftabot/engine  ←  auto-detects & diffs API schema
        │  breaking changes found
        ▼
 API DriftaBot     ←  searches org for affected consumers
@@ -47,7 +47,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: DriftaBot/driftabot-engine@v1
+      - uses: DriftaBot/engine@v5
         with:
           org-read-token: ${{ secrets.ORG_READ_TOKEN }}
           # anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}  # optional: AI risk analysis

@@ -9,12 +9,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/DriftaBot/driftabot-engine/pkg/compare"
-	"github.com/DriftaBot/driftabot-engine/internal/generate/node/express"
-	"github.com/DriftaBot/driftabot-engine/internal/generate/node/nest"
-	"github.com/DriftaBot/driftabot-engine/internal/languages"
-	"github.com/DriftaBot/driftabot-engine/internal/reporter"
-	"github.com/DriftaBot/driftabot-engine/pkg/schema"
+	"github.com/DriftaBot/engine/pkg/compare"
+	"github.com/DriftaBot/engine/internal/generate/node/express"
+	"github.com/DriftaBot/engine/internal/generate/node/nest"
+	"github.com/DriftaBot/engine/internal/languages"
+	"github.com/DriftaBot/engine/internal/reporter"
+	"github.com/DriftaBot/engine/pkg/schema"
 )
 
 var compareCmd = &cobra.Command{

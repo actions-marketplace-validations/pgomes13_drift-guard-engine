@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/DriftaBot/driftabot-engine/internal/parser/grpc/helpers"
-	"github.com/DriftaBot/driftabot-engine/pkg/schema"
+	"github.com/DriftaBot/engine/internal/parser/grpc/helpers"
+	"github.com/DriftaBot/engine/pkg/schema"
 
 	"github.com/emicklei/proto"
 )

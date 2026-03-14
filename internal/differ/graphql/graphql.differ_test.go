@@ -3,9 +3,9 @@ package graphql_test
 import (
 	"testing"
 
-	differgraphql "github.com/DriftaBot/driftabot-engine/internal/differ/graphql"
-	parsergraphql "github.com/DriftaBot/driftabot-engine/internal/parser/graphql"
-	"github.com/DriftaBot/driftabot-engine/pkg/schema"
+	differgraphql "github.com/DriftaBot/engine/internal/differ/graphql"
+	parsergraphql "github.com/DriftaBot/engine/internal/parser/graphql"
+	"github.com/DriftaBot/engine/pkg/schema"
 )
 
 const testdataDir = "../../testdata/"

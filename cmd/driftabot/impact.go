@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/DriftaBot/driftabot-engine/pkg/impact"
-	"github.com/DriftaBot/driftabot-engine/pkg/schema"
+	"github.com/DriftaBot/engine/pkg/impact"
+	"github.com/DriftaBot/engine/pkg/schema"
 )
 
 var impactCmd = &cobra.Command{

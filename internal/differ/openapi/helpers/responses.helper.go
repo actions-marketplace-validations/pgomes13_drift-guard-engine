@@ -3,7 +3,7 @@ package helpers
 import (
 	"fmt"
 
-	"github.com/DriftaBot/driftabot-engine/pkg/schema"
+	"github.com/DriftaBot/engine/pkg/schema"
 )
 
 func DiffResponses(path, method string, base, head []schema.Response) []schema.Change {

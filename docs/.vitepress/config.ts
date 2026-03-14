@@ -8,7 +8,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/install' },
-      { text: 'GitHub', link: 'https://github.com/DriftaBot/driftabot-engine' },
+      { text: 'GitHub', link: 'https://github.com/DriftaBot/engine' },
     ],
 
     sidebar: [
@@ -54,7 +54,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/DriftaBot/driftabot-engine' },
+      { icon: 'github', link: 'https://github.com/DriftaBot/engine' },
     ],
 
     footer: {

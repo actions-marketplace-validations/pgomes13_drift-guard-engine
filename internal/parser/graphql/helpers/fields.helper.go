@@ -3,7 +3,7 @@ package helpers
 import (
 	"strings"
 
-	"github.com/DriftaBot/driftabot-engine/pkg/schema"
+	"github.com/DriftaBot/engine/pkg/schema"
 
 	"github.com/vektah/gqlparser/v2/ast"
 )

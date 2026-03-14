@@ -6,7 +6,7 @@
     "name": "DriftaBot",
     "url": "https://github.com/DriftaBot"
   },
-  "homepage": "https://github.com/DriftaBot/driftabot-engine",
-  "repository": "https://github.com/DriftaBot/driftabot-engine",
+  "homepage": "https://github.com/DriftaBot/engine",
+  "repository": "https://github.com/DriftaBot/engine",
   "license": "MIT"
 }

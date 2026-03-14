@@ -1,4 +1,4 @@
-# driftabot-engine
+# @driftabot/engine
 
 API type safety across **OpenAPI**, **GraphQL**, and **gRPC** — catch breaking changes before they reach production.
 
@@ -22,7 +22,7 @@ npm install @driftabot/engine
 driftabot compare
 
 # GitHub Action — one line
-- uses: DriftaBot/driftabot-engine@v1
+- uses: DriftaBot/engine@v5
 ```
 
 ## npm / Node.js API

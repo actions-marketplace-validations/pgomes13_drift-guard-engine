@@ -353,7 +353,7 @@ const file_api_drift_agent_v1_drift_agent_proto_rawDesc = "" +
 	"\x04info\x18\x04 \x01(\x05R\x04info2O\n" +
 	"\n" +
 	"DiffEngine\x12A\n" +
-	"\x04Diff\x12\x1b.drift_agent.v1.DiffRequest\x1a\x1c.drift_agent.v1.DiffResponseBHZFgithub.com/DriftaBot/driftabot-engine/api/drift-agent/v1;driftabotv1b\x06proto3"
+	"\x04Diff\x12\x1b.drift_agent.v1.DiffRequest\x1a\x1c.drift_agent.v1.DiffResponseBHZFgithub.com/DriftaBot/engine/api/drift-agent/v1;driftabotv1b\x06proto3"
 
 var (
 	file_api_drift_agent_v1_drift_agent_proto_rawDescOnce sync.Once

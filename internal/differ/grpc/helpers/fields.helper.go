@@ -3,7 +3,7 @@ package helpers
 import (
 	"fmt"
 
-	"github.com/DriftaBot/driftabot-engine/pkg/schema"
+	"github.com/DriftaBot/engine/pkg/schema"
 )
 
 func indexFields(fields []schema.GRPCField) map[string]schema.GRPCField {

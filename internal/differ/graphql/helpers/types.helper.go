@@ -4,7 +4,7 @@ package helpers
 import (
 	"fmt"
 
-	"github.com/DriftaBot/driftabot-engine/pkg/schema"
+	"github.com/DriftaBot/engine/pkg/schema"
 )
 
 func IndexGQLTypes(s *schema.GQLSchema) map[string]schema.GQLType {

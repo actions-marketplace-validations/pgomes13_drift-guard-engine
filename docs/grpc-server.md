@@ -33,4 +33,4 @@ service DiffEngine {
 | `head_name`    | `string` | Original filename of the head file                                                                   |
 | `type`         | `string` | Explicit schema type: `openapi`, `graphql`, or `grpc`. Auto-detected from `base_name` extension if omitted. |
 
-The proto definition lives at [`api/drift-agent/v1/drift-agent.proto`](https://github.com/DriftaBot/driftabot-engine/blob/main/api/drift-agent/v1/drift-agent.proto).
+The proto definition lives at [`api/drift-agent/v1/drift-agent.proto`](https://github.com/DriftaBot/engine/blob/main/api/drift-agent/v1/drift-agent.proto).

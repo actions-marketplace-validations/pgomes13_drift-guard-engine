@@ -1,6 +1,6 @@
 package languages
 
-import "github.com/DriftaBot/driftabot-engine/internal/generate/golang"
+import "github.com/DriftaBot/engine/internal/generate/golang"
 
 // GenerateGo delegates to the golang generate package.
 var GenerateGo = golang.Go

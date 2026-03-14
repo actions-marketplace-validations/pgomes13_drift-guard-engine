@@ -20,7 +20,7 @@ jobs:
 
       - name: Install driftabot
         run: |
-          curl -sSL https://github.com/DriftaBot/driftabot-engine/releases/latest/download/driftabot_linux_amd64.tar.gz | tar -xz
+          curl -sSL https://github.com/DriftaBot/engine/releases/latest/download/driftabot_linux_amd64.tar.gz | tar -xz
           sudo mv driftabot /usr/local/bin/
 
       - name: Check for breaking changes
@@ -65,7 +65,7 @@ driftabot is a single static binary — install it the same way on any CI runner
 
 ```sh
 # GitLab CI / CircleCI / Bitbucket Pipelines
-curl -sSL https://github.com/DriftaBot/driftabot-engine/releases/latest/download/driftabot_linux_amd64.tar.gz | tar -xz
+curl -sSL https://github.com/DriftaBot/engine/releases/latest/download/driftabot_linux_amd64.tar.gz | tar -xz
 ./driftabot compare --fail-on-breaking
 ```
 

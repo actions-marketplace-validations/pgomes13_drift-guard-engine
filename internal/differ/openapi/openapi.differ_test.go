@@ -3,9 +3,9 @@ package openapi_test
 import (
 	"testing"
 
-	differopenapi "github.com/DriftaBot/driftabot-engine/internal/differ/openapi"
-	parseropenapi "github.com/DriftaBot/driftabot-engine/internal/parser/openapi"
-	"github.com/DriftaBot/driftabot-engine/pkg/schema"
+	differopenapi "github.com/DriftaBot/engine/internal/differ/openapi"
+	parseropenapi "github.com/DriftaBot/engine/internal/parser/openapi"
+	"github.com/DriftaBot/engine/pkg/schema"
 )
 
 const testdataDir = "../../testdata/"

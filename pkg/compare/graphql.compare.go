@@ -3,10 +3,10 @@ package compare
 import (
 	"fmt"
 
-	"github.com/DriftaBot/driftabot-engine/internal/classifier"
-	differgraphql "github.com/DriftaBot/driftabot-engine/internal/differ/graphql"
-	parsergraphql "github.com/DriftaBot/driftabot-engine/internal/parser/graphql"
-	"github.com/DriftaBot/driftabot-engine/pkg/schema"
+	"github.com/DriftaBot/engine/internal/classifier"
+	differgraphql "github.com/DriftaBot/engine/internal/differ/graphql"
+	parsergraphql "github.com/DriftaBot/engine/internal/parser/graphql"
+	"github.com/DriftaBot/engine/pkg/schema"
 )
 
 // GraphQL parses basePath and headPath as GraphQL SDL schemas, diffs them,

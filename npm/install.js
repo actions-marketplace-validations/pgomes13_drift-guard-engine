@@ -9,7 +9,7 @@ const path = require("path");
 const { execSync } = require("child_process");
 
 const VERSION = require("./package.json").version;
-const REPO = "DriftaBot/driftabot-engine";
+const REPO = "DriftaBot/engine";
 const BIN_DIR = path.join(__dirname, "bin");
 const BIN_PATH = path.join(BIN_DIR, process.platform === "win32" ? "driftabot.exe" : "driftabot");
 
@@ -92,6 +92,6 @@ async function install() {
 
 install().catch((err) => {
   process.stderr.write(`driftabot install failed: ${err.message}\n`);
-  process.stderr.write("You can install it manually: https://github.com/DriftaBot/driftabot-engine/releases\n");
+  process.stderr.write("You can install it manually: https://github.com/DriftaBot/engine/releases\n");
   // Do not exit(1) — allow npm install to succeed even if binary download fails.
 });

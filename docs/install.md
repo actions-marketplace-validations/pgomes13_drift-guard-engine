@@ -18,7 +18,7 @@ brew install driftabot
 ## Go install
 
 ```sh
-go install github.com/DriftaBot/driftabot-engine/cmd/driftabot@latest
+go install github.com/DriftaBot/engine/cmd/driftabot@latest
 ```
 
 ## Build from source

@@ -10,9 +10,9 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
-	"github.com/DriftaBot/driftabot-engine/pkg/compare"
-	"github.com/DriftaBot/driftabot-engine/internal/languages"
-	"github.com/DriftaBot/driftabot-engine/internal/reporter"
+	"github.com/DriftaBot/engine/pkg/compare"
+	"github.com/DriftaBot/engine/internal/languages"
+	"github.com/DriftaBot/engine/internal/reporter"
 )
 
 func main() {

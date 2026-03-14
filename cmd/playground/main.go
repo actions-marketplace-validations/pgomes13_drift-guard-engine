@@ -12,9 +12,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/DriftaBot/driftabot-engine/pkg/compare"
-	"github.com/DriftaBot/driftabot-engine/pkg/impact"
-	"github.com/DriftaBot/driftabot-engine/pkg/schema"
+	"github.com/DriftaBot/engine/pkg/compare"
+	"github.com/DriftaBot/engine/pkg/impact"
+	"github.com/DriftaBot/engine/pkg/schema"
 )
 
 //go:embed static

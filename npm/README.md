@@ -2,7 +2,7 @@
 
 API schema diff engine — detect breaking changes in **OpenAPI**, **GraphQL**, and **gRPC** schemas.
 
-Thin npm wrapper around the [`driftabot`](https://github.com/DriftaBot/driftabot-engine) Go binary. On install, the correct pre-built binary for your platform is downloaded automatically.
+Thin npm wrapper around the [`driftabot`](https://github.com/DriftaBot/engine) Go binary. On install, the correct pre-built binary for your platform is downloaded automatically.
 
 ## Installation
 

@@ -5,7 +5,7 @@ driftabot can be used as a Go library. The `pkg/compare` and `pkg/impact` packag
 ## Installation
 
 ```sh
-go get github.com/DriftaBot/driftabot-engine@latest
+go get github.com/DriftaBot/engine@latest
 ```
 
 ## Comparing schemas
@@ -13,7 +13,7 @@ go get github.com/DriftaBot/driftabot-engine@latest
 ### OpenAPI
 
 ```go
-import "github.com/DriftaBot/driftabot-engine/pkg/compare"
+import "github.com/DriftaBot/engine/pkg/compare"
 
 result, err := compare.OpenAPI("old.yaml", "new.yaml")
 if err != nil {
@@ -46,8 +46,8 @@ Scan source code for references to each breaking change in a diff result:
 
 ```go
 import (
-    "github.com/DriftaBot/driftabot-engine/pkg/compare"
-    "github.com/DriftaBot/driftabot-engine/pkg/impact"
+    "github.com/DriftaBot/engine/pkg/compare"
+    "github.com/DriftaBot/engine/pkg/impact"
 )
 
 result, _ := compare.OpenAPI("old.yaml", "new.yaml")
@@ -67,7 +67,7 @@ Render a report:
 ```go
 import (
     "os"
-    "github.com/DriftaBot/driftabot-engine/pkg/impact"
+    "github.com/DriftaBot/engine/pkg/impact"
 )
 
 impact.Report(os.Stdout, hits, "text")     // text table

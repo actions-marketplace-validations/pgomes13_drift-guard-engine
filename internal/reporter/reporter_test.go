@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/DriftaBot/driftabot-engine/internal/reporter"
-	"github.com/DriftaBot/driftabot-engine/pkg/schema"
+	"github.com/DriftaBot/engine/internal/reporter"
+	"github.com/DriftaBot/engine/pkg/schema"
 )
 
 // sampleResult builds a DiffResult with one breaking, one non-breaking, and one info change.

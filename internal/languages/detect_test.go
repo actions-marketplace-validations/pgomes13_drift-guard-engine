@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/DriftaBot/driftabot-engine/internal/languages"
+	"github.com/DriftaBot/engine/internal/languages"
 )
 
 // --------------------------------------------------------------------------
