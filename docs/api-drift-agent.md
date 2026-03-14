@@ -4,7 +4,7 @@
 
 > **Recommended integration.** The API Drift Agent is the recommended way to solve API drift at scale. Rather than wiring up the engine manually, the agent handles discovery, analysis, and consumer notification automatically.
 
-`api-drift-agent` is a LangGraph-powered agentic workflow that detects breaking API changes in provider PRs and automatically opens GitHub Issues in affected consumer repos — no changes required in consumer repos, no explicit consumer list to maintain.
+`api-drift-agent` is a LangGraph-powered agentic workflow that detects breaking API changes in provider PRs, scans a configured list of consumer repos, and automatically opens GitHub Issues in any that are affected.
 
 ## How it works
 
@@ -20,8 +20,10 @@ Provider PR opened
        │ breaking changes found
        ▼
 ┌─────────────────────────────────────┐
-│  Search org for repos that          │
-│  reference affected endpoints       │
+│  Scan consumer repos from           │
+│  consumer-repos input               │
+│  (no consumer-repos → post comment  │
+│   with setup instructions & skip)  │
 └─────────────────────────────────────┘
        │
        ▼
@@ -41,7 +43,7 @@ Provider PR opened
 
 ## Prerequisites
 
-- Create a GitHub Personal Access Token (PAT) with `repo` (or `public_repo` for public-only orgs) and `read:org` scopes. This is required to search, clone, and open issues in consumer repos. Add it as a repository secret named `ORG_READ_TOKEN` (**Settings → Secrets and variables → Actions → New repository secret**).
+- Create a GitHub Personal Access Token (PAT) with `repo` and `read:org` scopes. This is required to clone and open issues in consumer repos. Add it as a repository secret named `ORG_READ_TOKEN` (**Settings → Secrets and variables → Actions → New repository secret**).
 - Optionally, add an `ANTHROPIC_API_KEY` secret to enable Claude-powered risk analysis in the issues the agent opens.
 
 ## Usage
@@ -69,6 +71,9 @@ jobs:
       - uses: DriftAgent/api-drift-agent@v1
         with:
           org-read-token: ${{ secrets.ORG_READ_TOKEN }}
+          consumer-repos: |
+            your-org/service-a
+            your-org/service-b
           # anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}  # optional: enables AI risk analysis
 ```
 
@@ -78,7 +83,8 @@ jobs:
 |---|---|---|
 | `base-schema` | No | Path to schema file (auto-detected if omitted). Supports OpenAPI (`.yaml`/`.yml`/`.json`), GraphQL (`.graphql`/`.gql`), and Protobuf (`.proto`). |
 | `head-schema` | No | Path on PR branch (defaults to `base-schema`) |
-| `org-read-token` | No | PAT with `repo` (or `public_repo`) + `read:org` scopes. Required to search, clone, and open issues in consumer repos. Falls back to `GITHUB_TOKEN` (cannot open issues in other repos). |
+| `org-read-token` | No | PAT with `repo` + `read:org` scopes. Required to clone consumer repos and open issues in them. Falls back to `GITHUB_TOKEN` (cannot open issues in other repos). |
+| `consumer-repos` | No | Newline or comma-separated list of consumer repos to scan (e.g. `org/repo`). When omitted, no scan is conducted and the PR comment will include setup instructions. |
 | `anthropic-api-key` | No | Enables Claude risk analysis in opened issues |
 
 ## Re-run behaviour
@@ -90,6 +96,7 @@ The agent is fully idempotent across CI rebuilds:
 | Re-run, same breaking changes | Updated in-place | Updated in-place — no duplicates |
 | Re-run, more breaking changes | Updated in-place | Updated in-place |
 | PR fixed — breaking changes gone | Updated → ✅ all clear | Closed with "Breaking changes resolved" |
+| Breaking changes found, no `consumer-repos` configured | Posted with breaking changes table + setup instructions | Nothing touched |
 | Clean PR, no previous activity | Nothing posted | Nothing touched |
 
 ## Troubleshooting
@@ -99,8 +106,8 @@ The agent is fully idempotent across CI rebuilds:
 | Action fails: "No API schema found" | Schema file not at a standard path, or generated at runtime and not committed | Set the `base-schema` input explicitly |
 | Action fails: "drift-guard-engine failed to diff schemas" | Schema file is invalid or malformed | Validate locally: `drift-guard openapi --base ... --head ...` (or `graphql`/`grpc`) |
 | Issues created but no AI explanations | `ANTHROPIC_API_KEY` not set | Set the secret in your repo — the agent runs without it but skips Claude risk analysis |
-| No issues created in consumer repos | `org-read-token` not set, or PAT has read-only scope | Set `org-read-token` to a PAT with `repo` (or `public_repo`) + `read:org` scopes |
-| No consumers found (public org) | Breaking change path is too generic (e.g. `/v1`) | The agent searches for the first stable path segment — very short or version-only segments may not yield useful results |
+| No issues created in consumer repos | `org-read-token` not set, or PAT has insufficient scope | Set `org-read-token` to a PAT with `repo` + `read:org` scopes |
+| PR comment shows "no consumer scan conducted" | `consumer-repos` input not set | Add the `consumer-repos` input listing repos to scan |
 
 ## Python CLI
 
@@ -114,5 +121,6 @@ drift-guard-agent \
   --org my-org \
   --token $ORG_READ_TOKEN \
   --github-token $ORG_READ_TOKEN \
+  --consumer-repos your-org/service-a,your-org/service-b \
   --pr 42
 ```
