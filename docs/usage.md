@@ -3,7 +3,7 @@
 ## Diff two schema files
 
 ```sh
-drift-guard <command> --base <file> --head <file> [--format <format>] [--fail-on-breaking]
+drift-bot <command> --base <file> --head <file> [--format <format>] [--fail-on-breaking]
 ```
 
 | Command   | Description                                 |
@@ -25,29 +25,29 @@ drift-guard <command> --base <file> --head <file> [--format <format>] [--fail-on
 
 ```sh
 # OpenAPI — text output
-drift-guard openapi --base api/base.yaml --head api/head.yaml
+drift-bot openapi --base api/base.yaml --head api/head.yaml
 
 # GraphQL — JSON output
-drift-guard graphql --base schema/base.graphql --head schema/head.graphql --format json
+drift-bot graphql --base schema/base.graphql --head schema/head.graphql --format json
 
 # gRPC — fail CI on breaking changes
-drift-guard grpc --base proto/base.proto --head proto/head.proto --fail-on-breaking
+drift-bot grpc --base proto/base.proto --head proto/head.proto --fail-on-breaking
 ```
 
 ## Impact analysis
 
-After detecting breaking changes, use `drift-guard impact` to scan source code and find every file and line that references each breaking change.
+After detecting breaking changes, use `drift-bot impact` to scan source code and find every file and line that references each breaking change.
 
 ```sh
-drift-guard <schema-command> --base <file> --head <file> --format json \
-  | drift-guard impact --scan <dir>
+drift-bot <schema-command> --base <file> --head <file> --format json \
+  | drift-bot impact --scan <dir>
 ```
 
 Or from a saved diff file:
 
 ```sh
-drift-guard openapi --base base.yaml --head head.yaml --format json > diff.json
-drift-guard impact --diff diff.json --scan ./src
+drift-bot openapi --base base.yaml --head head.yaml --format json > diff.json
+drift-bot impact --diff diff.json --scan ./src
 ```
 
 ### Flags
@@ -62,14 +62,14 @@ drift-guard impact --diff diff.json --scan ./src
 
 ```sh
 # Pipe OpenAPI diff directly into impact scan
-drift-guard openapi --base old.yaml --head new.yaml --format json \
-  | drift-guard impact --scan ./services
+drift-bot openapi --base old.yaml --head new.yaml --format json \
+  | drift-bot impact --scan ./services
 
 # Markdown report — collapsible sections per breaking change
-drift-guard impact --diff diff.json --scan ./src --format markdown
+drift-bot impact --diff diff.json --scan ./src --format markdown
 
 # JSON output (machine-readable)
-drift-guard impact --diff diff.json --scan ./src --format json
+drift-bot impact --diff diff.json --scan ./src --format json
 ```
 
 ### Output formats

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Thin shim: passes all arguments to the drift-guard binary.
+// Thin shim: passes all arguments to the drift-bot binary.
 "use strict";
 
 const path = require("path");
@@ -8,16 +8,16 @@ const { spawnSync } = require("child_process");
 const bin = path.join(
   __dirname,
   "bin",
-  process.platform === "win32" ? "drift-guard.exe" : "drift-guard"
+  process.platform === "win32" ? "drift-bot.exe" : "drift-bot"
 );
 
 const result = spawnSync(bin, process.argv.slice(2), { stdio: "inherit" });
 
 if (result.error) {
   process.stderr.write(
-    `drift-guard: could not run binary: ${result.error.message}\n` +
+    `drift-bot: could not run binary: ${result.error.message}\n` +
     `Make sure the package installed correctly or download manually:\n` +
-    `https://github.com/DriftAgent/api-drift-engine/releases\n`
+    `https://github.com/DriftBot/api-drift-engine/releases\n`
   );
   process.exit(1);
 }

@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "drift-guard": {
-      "command": "drift-guard-mcp",
+    "drift-bot": {
+      "command": "drift-bot-mcp",
       "args": [],
       "description": "Detect API schema drift across OpenAPI, GraphQL, and gRPC"
     }

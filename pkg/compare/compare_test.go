@@ -3,7 +3,7 @@ package compare_test
 import (
 	"testing"
 
-	"github.com/DriftAgent/api-drift-engine/pkg/compare"
+	"github.com/DriftBot/api-drift-engine/pkg/compare"
 )
 
 const testdataDir = "../../internal/testdata/"

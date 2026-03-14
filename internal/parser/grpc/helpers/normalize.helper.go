@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	"github.com/DriftAgent/api-drift-engine/pkg/schema"
+	"github.com/DriftBot/api-drift-engine/pkg/schema"
 
 	"github.com/emicklei/proto"
 )

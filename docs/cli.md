@@ -1,6 +1,6 @@
 # CLI
 
-Run drift-guard locally to check for API drift before adding it to CI.
+Run drift-bot locally to check for API drift before adding it to CI.
 
 ## Install
 
@@ -11,14 +11,14 @@ See [Installation](/install) for all install options.
 From the root of your project, run:
 
 ```sh
-drift-guard compare
+drift-bot compare
 ```
 
 <details>
 <summary>Show steps</summary>
 
 ```
-drift-guard compare
+drift-bot compare
        │
        ▼
 ┌────────────────────────────────────────────┐
@@ -61,12 +61,12 @@ drift-guard compare
 
 This is a good way to verify it works with your project before integrating further.
 
-> If `drift-guard compare` fails to auto-detect or generate schemas for your project, you can [generate them manually](/generating-specs) and pass the files directly with `drift-guard openapi --base ... --head ...`.
+> If `drift-bot compare` fails to auto-detect or generate schemas for your project, you can [generate them manually](/generating-specs) and pass the files directly with `drift-bot openapi --base ... --head ...`.
 
 ### Check for breaking changes only
 
 ```sh
-drift-guard compare --fail-on-breaking
+drift-bot compare --fail-on-breaking
 ```
 
 Exits with code `1` if any breaking changes are found — same behavior as in CI.
@@ -74,7 +74,7 @@ Exits with code `1` if any breaking changes are found — same behavior as in CI
 ### Markdown output
 
 ```sh
-drift-guard compare --format markdown
+drift-bot compare --format markdown
 ```
 
 Renders the same table that gets posted as a PR comment in CI.

@@ -2,7 +2,7 @@
 
 ## Schema formats
 
-`drift-guard` can diff any two schema files of these types:
+`drift-bot` can diff any two schema files of these types:
 
 | Format      | Command   | File types         |
 | ----------- | --------- | ------------------ |
@@ -12,7 +12,7 @@
 
 ## Auto-detection (`compare`)
 
-`drift-guard compare` auto-detects your project type and generates schemas automatically.
+`drift-bot compare` auto-detects your project type and generates schemas automatically.
 
 ### Node.js
 

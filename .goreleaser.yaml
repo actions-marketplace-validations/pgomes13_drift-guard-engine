@@ -5,9 +5,9 @@ before:
     - go mod tidy
 
 builds:
-  - id: drift-guard
-    main: ./cmd/drift-guard
-    binary: drift-guard
+  - id: drift-bot
+    main: ./cmd/drift-bot
+    binary: drift-bot
     env:
       - CGO_ENABLED=0
     goos:
@@ -22,8 +22,8 @@ builds:
         goarch: arm64
 
 archives:
-  - id: drift-guard
-    name_template: "drift-guard_{{ .Os }}_{{ .Arch }}"
+  - id: drift-bot
+    name_template: "drift-bot_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         formats: [zip]
@@ -35,15 +35,15 @@ release:
   replace_existing_artifacts: true
 
 brews:
-  - name: drift-guard
+  - name: drift-bot
     repository:
-      owner: DriftAgent
+      owner: DriftBot
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/DriftAgent/api-drift-engine"
+    homepage: "https://github.com/DriftBot/api-drift-engine"
     description: "Schema diff engine that detects breaking vs. non-breaking API contract changes across OpenAPI, GraphQL, and gRPC schemas."
     license: "MIT"
     install: |
-      bin.install "drift-guard"
+      bin.install "drift-bot"
     test: |
-      system "#{bin}/drift-guard", "--help"
+      system "#{bin}/drift-bot", "--help"

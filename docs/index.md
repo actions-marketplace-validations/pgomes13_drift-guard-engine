@@ -8,13 +8,13 @@ hero:
   actions:
     - theme: brand
       text: GitHub Marketplace ↗
-      link: https://github.com/marketplace/actions/api-drift-agent
+      link: https://github.com/marketplace/actions/api-drift-engine
     - theme: alt
       text: View on GitHub
-      link: https://github.com/DriftAgent/api-drift-engine
+      link: https://github.com/DriftBot/api-drift-engine
     - theme: alt
       text: npm ↗
-      link: https://www.npmjs.com/package/@drift-agent/api-drift-engine
+      link: https://www.npmjs.com/package/@drift-bot/api-drift-engine
       target: _blank
 
 features:

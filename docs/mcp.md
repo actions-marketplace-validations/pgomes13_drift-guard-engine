@@ -1,6 +1,6 @@
 # MCP Server
 
-drift-guard ships an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that exposes schema diffing as tools for AI assistants such as Claude Desktop.
+drift-bot ships an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that exposes schema diffing as tools for AI assistants such as Claude Desktop.
 
 ## Running the server
 
@@ -16,13 +16,13 @@ The server communicates over stdio and is registered in your MCP host's configur
 
 ### Claude Desktop configuration
 
-Add drift-guard to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
+Add drift-bot to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
 
 ```json
 {
   "mcpServers": {
-    "drift-guard": {
-      "command": "/path/to/drift-guard-mcp"
+    "drift-bot": {
+      "command": "/path/to/drift-bot-mcp"
     }
   }
 }
