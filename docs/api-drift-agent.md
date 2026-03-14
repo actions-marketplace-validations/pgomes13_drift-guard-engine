@@ -66,6 +66,17 @@ jobs:
 | `head-schema` | No | Path on PR branch (defaults to `base-schema`) |
 | `org-read-token` | No | PAT with `repo:read` + `read:org` for private repos |
 
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Action fails: "No OpenAPI schema found" | Schema file not at a standard path | Set the `base-schema` input explicitly |
+| Action fails: "drift-guard-engine failed to diff schemas" | Schema file is invalid or malformed OpenAPI | Validate the schema with `drift-guard openapi --base ... --head ...` locally |
+| No issues created, no errors | Missing `issues: write` permission | Add `issues: write` under `permissions:` in your workflow — the action will now emit a warning if this is missing |
+| No consumers found (private org) | `GITHUB_TOKEN` can't search private repos | Set `org-read-token` to a PAT with `repo:read` + `read:org` |
+| No consumers found (public org) | Breaking change path is too generic (e.g. `/v1`) | The agent searches for the first stable path segment — very short or version-only segments may not yield useful results |
+| Issues created but no AI explanations | `ANTHROPIC_API_KEY` not set | Set the secret in your repo — the agent runs without it but skips the Claude risk analysis |
+
 ## Python CLI
 
 The agent can also be invoked directly from the command line:
