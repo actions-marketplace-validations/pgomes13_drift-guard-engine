@@ -31,6 +31,12 @@ Provider PR opened
 └─────────────────────────────────────┘
 ```
 
+## Prerequisites
+
+- Your provider repo must have an OpenAPI schema file committed (e.g. `openapi.yaml`). If you don't have one yet, see [Generating Specs](/generating-specs).
+- For private orgs, create a GitHub Personal Access Token (PAT) with `repo` and `read:org` scopes, then add it as a repository secret named `ORG_READ_TOKEN` (**Settings → Secrets and variables → Actions → New repository secret**).
+- Optionally, add an `ANTHROPIC_API_KEY` secret to enable Claude-powered risk analysis in the issues the agent opens.
+
 ## Usage
 
 Add to your **provider** repo's workflow:
@@ -56,6 +62,7 @@ jobs:
       - uses: DriftAgent/api-drift-agent@v1
         with:
           org-read-token: ${{ secrets.ORG_READ_TOKEN }}
+          # anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}  # optional: enables AI risk analysis
 ```
 
 ## Inputs
@@ -65,6 +72,7 @@ jobs:
 | `base-schema` | No | Path to OpenAPI schema (auto-detected if omitted) |
 | `head-schema` | No | Path on PR branch (defaults to `base-schema`) |
 | `org-read-token` | No | PAT with `repo:read` + `read:org` for private repos |
+| `anthropic-api-key` | No | Enables Claude risk analysis in opened issues |
 
 ## Troubleshooting
 
@@ -79,7 +87,7 @@ jobs:
 
 ## Python CLI
 
-The agent can also be invoked directly from the command line:
+Use this if you want to run the agent locally or integrate it into a non-GitHub CI system. You'll need a diff JSON file produced by `drift-guard-engine` first.
 
 ```sh
 pip install drift-guard-agent

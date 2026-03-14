@@ -20,7 +20,6 @@ export default defineConfig({
           { text: 'Usage', link: '/usage' },
           { text: 'Playground ↗', link: 'https://drift-guard-theta.vercel.app/', target: '_blank' },
           { text: 'Supported', link: '/supported' },
-          { text: 'Generating Specs', link: '/generating-specs' },
         ],
       },
       {
@@ -43,6 +42,13 @@ export default defineConfig({
           { text: 'npm', link: '/npm' },
           { text: 'Go', link: '/sdk' },
           { text: 'gRPC', link: '/grpc-server' },
+        ],
+      },
+      {
+        text: 'Troubleshooting',
+        items: [
+          { text: 'Agent Troubleshooting', link: '/api-drift-agent#troubleshooting' },
+          { text: 'Generating Specs', link: '/generating-specs' },
         ],
       },
       {
