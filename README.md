@@ -2,7 +2,7 @@
 
 API type safety across **OpenAPI**, **GraphQL**, and **gRPC** — catch breaking changes before they reach production.
 
-**[Full documentation →](https://driftabot.github.io/driftabot-engine)**
+**[Full documentation →](https://driftabot.github.io/engine/)**
 
 ## Quick install
 
