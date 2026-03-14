@@ -22,7 +22,7 @@ npm install @driftabot/engine
 driftabot compare
 
 # GitHub Action — one line
-- uses: DriftaBot/engine@v5
+- uses: DriftaBot/agent@v2
 ```
 
 ## npm / Node.js API
