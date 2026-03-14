@@ -71,8 +71,7 @@ import (
 )
 
 impact.Report(os.Stdout, hits, "text")     // text table
-impact.Report(os.Stdout, hits, "markdown") // GitHub-flavored markdown (collapsible sections)
-impact.Report(os.Stdout, hits, "github")   // GitHub Actions annotations (::error file=...,line=...)
+impact.Report(os.Stdout, hits, "markdown") // markdown (collapsible sections)
 impact.Report(os.Stdout, hits, "json")     // JSON array
 ```
 

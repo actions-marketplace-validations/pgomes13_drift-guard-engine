@@ -22,7 +22,7 @@ features:
   - title: Severity classification
     details: Every change is classified as breaking, non-breaking, or info — with detailed rules per schema type.
   - title: Flexible integrations
-    details: Use the CLI, Go SDK, npm package, or GitHub Actions — the engine powers them all.
+    details: Use the CLI, Go SDK, or npm package — the engine powers them all.
   - title: MCP tools for AI assistants
     details: Expose schema diffing as native tools to Claude Desktop and other MCP-compatible AI assistants.
 ---

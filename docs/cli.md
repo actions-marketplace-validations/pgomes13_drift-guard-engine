@@ -59,7 +59,7 @@ drift-guard compare
 
 </details>
 
-This is a good way to verify it works with your project before wiring up the GitHub Action.
+This is a good way to verify it works with your project before integrating further.
 
 > If `drift-guard compare` fails to auto-detect or generate schemas for your project, you can [generate them manually](/generating-specs) and pass the files directly with `drift-guard openapi --base ... --head ...`.
 

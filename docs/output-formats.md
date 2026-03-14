@@ -9,7 +9,6 @@ Formats apply to both schema diff commands (`openapi`, `graphql`, `grpc`) and th
 | `text` | ✓ | ✓ |
 | `json` | ✓ | ✓ |
 | `markdown` | ✓ | ✓ |
-| `github` | ✓ | ✓ |
 
 ---
 
@@ -77,31 +76,9 @@ Breaking change: DELETE /users/{id} (endpoint_removed)
 
 ---
 
-## `github`
-
-Emits [GitHub Actions workflow commands](https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/workflow-commands-for-github-actions) that render as inline annotations on the PR diff.
-
-**Schema diff (`github`):**
-
-```
-::error title=Breaking Change::Endpoint '/users/{id}' method DELETE was removed
-::warning title=Non-Breaking Change::Endpoint '/posts' was added
-```
-
-**Impact (`github`)** — one annotation per hit, pointing to the exact file and line:
-
-```
-::error file=services/client.go,line=42,title=Breaking API change%3A DELETE /users/{id}::client.Delete("/users/" + id)
-::error file=apps/routes.go,line=17,title=Breaking API change%3A DELETE /users/{id}::r.DELETE("/users/:id", handler)
-```
-
-Each line appears as a red underline on the specific file and line in the GitHub PR diff view. Use `--format github` in CI workflows to surface impact hits directly in the code review.
-
----
-
 ## `markdown`
 
-Renders GitHub-flavored Markdown — used by the [GitHub Action](./ci.md) for automatic PR comments.
+Renders Markdown — suitable for PR comments or reports.
 
 **Schema diff (`markdown`):**
 
