@@ -29,12 +29,19 @@ Provider PR opened
 │  Clone each consumer repo           │
 │  Scan for affected files            │
 │  Open (or update) a GitHub Issue    │
+│  Post DriftAgent Report on PR       │
+└─────────────────────────────────────┘
+       │ PR re-run / changes fixed
+       ▼
+┌─────────────────────────────────────┐
+│  Close resolved consumer issues     │
+│  Update PR comment → all clear ✅   │
 └─────────────────────────────────────┘
 ```
 
 ## Prerequisites
 
-- For private orgs, create a GitHub Personal Access Token (PAT) with `repo` and `read:org` scopes, then add it as a repository secret named `ORG_READ_TOKEN` (**Settings → Secrets and variables → Actions → New repository secret**).
+- Create a GitHub Personal Access Token (PAT) with `repo` (or `public_repo` for public-only orgs) and `read:org` scopes. This is required to search, clone, and open issues in consumer repos. Add it as a repository secret named `ORG_READ_TOKEN` (**Settings → Secrets and variables → Actions → New repository secret**).
 - Optionally, add an `ANTHROPIC_API_KEY` secret to enable Claude-powered risk analysis in the issues the agent opens.
 
 ## Usage
@@ -71,21 +78,29 @@ jobs:
 |---|---|---|
 | `base-schema` | No | Path to schema file (auto-detected if omitted). Supports OpenAPI (`.yaml`/`.yml`/`.json`), GraphQL (`.graphql`/`.gql`), and Protobuf (`.proto`). |
 | `head-schema` | No | Path on PR branch (defaults to `base-schema`) |
-| `generate-schema-cmd` | No | Shell command to generate the schema before diffing (e.g. `npm run build && node scripts/gen-swagger.js`). Useful for code-first frameworks that don't commit a schema file. |
-| `org-read-token` | No | PAT with `repo:read` + `read:org` for private repos |
+| `org-read-token` | No | PAT with `repo` (or `public_repo`) + `read:org` scopes. Required to search, clone, and open issues in consumer repos. Falls back to `GITHUB_TOKEN` (cannot open issues in other repos). |
 | `anthropic-api-key` | No | Enables Claude risk analysis in opened issues |
+
+## Re-run behaviour
+
+The agent is fully idempotent across CI rebuilds:
+
+| Scenario | PR comment | Consumer issues |
+|---|---|---|
+| Re-run, same breaking changes | Updated in-place | Updated in-place — no duplicates |
+| Re-run, more breaking changes | Updated in-place | Updated in-place |
+| PR fixed — breaking changes gone | Updated → ✅ all clear | Closed with "Breaking changes resolved" |
+| Clean PR, no previous activity | Nothing posted | Nothing touched |
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `curl: (22) 404` when downloading drift-guard binary | Release assets are missing or named differently than expected | Check that the latest release on `pgomes13/drift-guard-engine` has GoReleaser artifacts attached — re-run the release if assets are missing |
-| Action fails: "No API schema found" | Schema file not at a standard path, or generated at runtime and not committed | Set the `base-schema` input explicitly, or use `generate-schema-cmd` to generate it before diffing |
+| Action fails: "No API schema found" | Schema file not at a standard path, or generated at runtime and not committed | Set the `base-schema` input explicitly |
 | Action fails: "drift-guard-engine failed to diff schemas" | Schema file is invalid or malformed | Validate locally: `drift-guard openapi --base ... --head ...` (or `graphql`/`grpc`) |
-| No issues created, no errors | Missing `issues: write` permission | Add `issues: write` under `permissions:` in your workflow — the action will now emit a warning if this is missing |
-| No consumers found (private org) | `GITHUB_TOKEN` can't search private repos | Set `org-read-token` to a PAT with `repo:read` + `read:org` |
+| Issues created but no AI explanations | `ANTHROPIC_API_KEY` not set | Set the secret in your repo — the agent runs without it but skips Claude risk analysis |
+| No issues created in consumer repos | `org-read-token` not set, or PAT has read-only scope | Set `org-read-token` to a PAT with `repo` (or `public_repo`) + `read:org` scopes |
 | No consumers found (public org) | Breaking change path is too generic (e.g. `/v1`) | The agent searches for the first stable path segment — very short or version-only segments may not yield useful results |
-| Issues created but no AI explanations | `ANTHROPIC_API_KEY` not set | Set the secret in your repo — the agent runs without it but skips the Claude risk analysis |
 
 ## Python CLI
 
@@ -98,7 +113,6 @@ drift-guard-agent \
   --diff diff.json \
   --org my-org \
   --token $ORG_READ_TOKEN \
-  --github-token $GITHUB_TOKEN \
+  --github-token $ORG_READ_TOKEN \
   --pr 42
 ```
-
