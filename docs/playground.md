@@ -2,7 +2,7 @@
 
 Try driftabot interactively — no install required.
 
-**[Open Playground →](https://driftabot-theta.vercel.app/)**
+**[Open Playground →](https://drift-guard-theta.vercel.app/)**
 
 ## Schema diff
 
