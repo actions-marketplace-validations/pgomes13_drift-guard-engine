@@ -47,7 +47,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: DriftaBot/engine@v5
+      - uses: DriftaBot/agent@v2
         with:
           org-read-token: ${{ secrets.ORG_READ_TOKEN }}
           # anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}  # optional: AI risk analysis

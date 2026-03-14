@@ -11,7 +11,7 @@ hero:
       link: /install
     - theme: brand
       text: DriftaBot Agent ↗
-      link: https://github.com/marketplace/actions/api-drift-agent
+      link: https://github.com/marketplace/actions/driftabot-agent
       target: _blank
     - theme: brand
       text: npm ↗

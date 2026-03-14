@@ -69,4 +69,4 @@ curl -sSL https://github.com/DriftaBot/engine/releases/latest/download/driftabot
 ./driftabot compare --fail-on-breaking
 ```
 
-> For automated consumer notification and issue tracking, use the [API DriftaBot](https://github.com/marketplace/actions/driftabot-engine) — a GitHub Action that builds on the engine.
+> For automated consumer notification and issue tracking, use the [DriftaBot Agent](https://github.com/marketplace/actions/driftabot-agent) — a GitHub Action that builds on the engine.
