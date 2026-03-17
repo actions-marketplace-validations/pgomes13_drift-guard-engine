@@ -1,3 +1,5 @@
+<img src="docs/public/logo.png" alt="DriftaBot" width="120">
+
 # DriftaBot
 
 API type safety across **OpenAPI**, **GraphQL**, and **gRPC** — catch breaking changes before they reach production.

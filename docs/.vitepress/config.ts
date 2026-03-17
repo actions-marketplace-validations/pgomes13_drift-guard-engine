@@ -6,6 +6,8 @@ export default defineConfig({
   base: '/engine/',
 
   themeConfig: {
+    logo: '/logo.png',
+
     nav: [
       { text: 'Guide', link: '/install' },
       { text: 'GitHub', link: 'https://github.com/DriftaBot/engine' },
